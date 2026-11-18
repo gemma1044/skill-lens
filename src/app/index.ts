@@ -22,7 +22,7 @@ type State = {
 
 const state: State = { snapshot: null, detail: null, selectedPath: null, query: "", source: "all", catalogView: "session", viewMode: "read", loading: true };
 const root = document.querySelector<HTMLDivElement>("#app")!;
-const app = new App({ name: "skill-lens", version: "0.1.1" });
+const app = new App({ name: "skill-lens", version: "0.1.2" });
 const previewConfig = window.__SKILL_LENS_PREVIEW__;
 const previewApi = typeof previewConfig === "object" ? (previewConfig.apiBase ?? "") : null;
 

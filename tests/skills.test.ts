@@ -28,9 +28,12 @@ test("scanSkills indexes SKILL.md metadata and exact content", async () => {
 test("scanSkills separates current-session reads from historical reads", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "skill-lens-session-"));
   const dataDirectory = path.join(root, "data");
+  const sessionsRoot = path.join(root, "sessions");
+  const sessionDirectory = path.join(sessionsRoot, "2026", "11", "18");
   const currentDirectory = path.join(root, "current-skill");
   const historicalDirectory = path.join(root, "historical-skill");
   await mkdir(dataDirectory);
+  await mkdir(sessionDirectory, { recursive: true });
   await mkdir(currentDirectory);
   await mkdir(historicalDirectory);
   const currentPath = path.join(currentDirectory, "SKILL.md");
@@ -40,7 +43,11 @@ test("scanSkills separates current-session reads from historical reads", async (
   await writeFile(path.join(dataDirectory, "activity.jsonl"), [
     JSON.stringify({ timestamp: "2026-11-18T10:00:00.000Z", sessionId: "session-old", turnId: "1", toolName: "read", path: historicalPath, detection: "observed-read" }),
     JSON.stringify({ timestamp: "2026-11-18T10:30:00.000Z", sessionId: "session-current", turnId: "2", toolName: "mcp__skill_lens__skillLens_read", path: historicalPath, detection: "observed-read" }),
-    JSON.stringify({ timestamp: "2026-11-18T11:00:00.000Z", sessionId: "session-current", turnId: "2", toolName: "read", path: currentPath, detection: "observed-read" }),
+  ].join("\n"));
+  await writeFile(path.join(sessionDirectory, "rollout-session-current.jsonl"), [
+    JSON.stringify({ timestamp: "2026-11-18T11:00:00.000Z", type: "response_item", payload: { type: "custom_tool_call", name: "exec", call_id: "call-1", input: `cat ${currentPath}` } }),
+    JSON.stringify({ timestamp: "2026-11-18T11:30:00.000Z", type: "response_item", payload: { type: "custom_tool_call", name: "mcp__skill_lens__skillLens_read", call_id: "call-2", input: { path: historicalPath } } }),
+    "{partially-written",
   ].join("\n"));
 
   const snapshot = await scanSkills({
@@ -48,12 +55,14 @@ test("scanSkills separates current-session reads from historical reads", async (
     cwd: root,
     dataDir: dataDirectory,
     sessionIds: ["session-current"],
+    sessionsRoot,
   });
   const current = snapshot.skills.find((skill) => skill.name === "current-skill");
   const historical = snapshot.skills.find((skill) => skill.name === "historical-skill");
   assert.equal(snapshot.currentSession.trackingAvailable, true);
   assert.equal(snapshot.currentSession.observedSkillCount, 1);
   assert.equal(current?.sessionObservedAt, "2026-11-18T11:00:00.000Z");
+  assert.equal(snapshot.activity[0]?.detection, "session-log-read");
   assert.equal(historical?.sessionObservedAt, null);
   assert.equal(historical?.observedAt, "2026-11-18T10:00:00.000Z");
 });

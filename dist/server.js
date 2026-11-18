@@ -241,10 +241,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path2) {
-  if (!path2)
+function getElementAtPath(obj, path3) {
+  if (!path3)
     return obj;
-  return path2.reduce((acc, key) => acc?.[key], obj);
+  return path3.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -503,11 +503,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path2, issues) {
+function prefixIssues(path3, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path2);
+    iss.path.unshift(path3);
     return iss;
   });
 }
@@ -1040,16 +1040,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path2 = []) => {
+  const processError = (error63, path3 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path3, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else {
-        const fullpath = [...path2, ...issue2.path];
+        const fullpath = [...path3, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -1088,17 +1088,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result2 = { errors: [] };
-  const processError = (error63, path2 = []) => {
+  const processError = (error63, path3 = []) => {
     var _a3;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path3, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path3, ...issue2.path]);
       } else {
-        const fullpath = [...path2, ...issue2.path];
+        const fullpath = [...path3, ...issue2.path];
         if (fullpath.length === 0) {
           result2.errors.push(mapper(issue2));
           continue;
@@ -1137,8 +1137,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path2) {
+  const path3 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path3) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -19170,13 +19170,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path2 = ref.slice(1).split("/").filter(Boolean);
-  if (path2.length === 0) {
+  const path3 = ref.slice(1).split("/").filter(Boolean);
+  if (path3.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path2[0] === defsKey) {
-    const key = path2[1] === void 0 ? void 0 : decodeJSONPointerSegment(path2[1]);
+  if (path3[0] === defsKey) {
+    const key = path3[1] === void 0 ? void 0 : decodeJSONPointerSegment(path3[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -24076,9 +24076,9 @@ var rev2026Codec = {
     });
     const parsed = buildSchemas2026().RequestMetaEnvelopeSchema.safeParse(meta3);
     if (!parsed.success) for (const issue2 of parsed.error.issues) {
-      const path2 = issue2.path.map(String);
-      const key = path2.length > 0 ? path2.join(".") : "_meta";
-      if (path2.length === 1 && issues.some((existing) => existing.key === key && existing.problem === "missing")) continue;
+      const path3 = issue2.path.map(String);
+      const key = path3.length > 0 ? path3.join(".") : "_meta";
+      if (path3.length === 1 && issues.some((existing) => existing.key === key && existing.problem === "missing")) continue;
       issues.push({
         key,
         problem: issue2.message
@@ -24405,17 +24405,17 @@ function scanXMcpHeaderDeclarations(inputSchema) {
   const declarations = [];
   const seenLower = /* @__PURE__ */ new Map();
   let numberFault;
-  const visit2 = (node2, path2, reachable) => {
+  const visit2 = (node2, path3, reachable) => {
     if (node2 === null || typeof node2 !== "object") return void 0;
     const schema = node2;
     if (X_MCP_HEADER_KEY in schema) {
-      if (!reachable || path2.length === 0) return `${pathName(path2)}: x-mcp-header is only permitted on properties statically reachable via a chain of 'properties' keys (not under items, additionalProperties, oneOf/anyOf/allOf/not, if/then/else, or $ref)`;
+      if (!reachable || path3.length === 0) return `${pathName(path3)}: x-mcp-header is only permitted on properties statically reachable via a chain of 'properties' keys (not under items, additionalProperties, oneOf/anyOf/allOf/not, if/then/else, or $ref)`;
       const raw = schema[X_MCP_HEADER_KEY];
-      if (typeof raw !== "string" || raw.length === 0) return `${pathName(path2)}: x-mcp-header MUST be a non-empty string`;
-      if (!RFC9110_TOKEN.test(raw)) return `${pathName(path2)}: x-mcp-header '${raw}' is not a valid RFC 9110 token (no spaces, control characters or HTTP delimiters)`;
+      if (typeof raw !== "string" || raw.length === 0) return `${pathName(path3)}: x-mcp-header MUST be a non-empty string`;
+      if (!RFC9110_TOKEN.test(raw)) return `${pathName(path3)}: x-mcp-header '${raw}' is not a valid RFC 9110 token (no spaces, control characters or HTTP delimiters)`;
       const type = typeof schema.type === "string" ? schema.type : void 0;
       if (type === void 0 || !PERMITTED_X_MCP_HEADER_TYPES.has(type)) {
-        const fault$1 = `${pathName(path2)}: x-mcp-header is only permitted on primitive-typed properties (string, integer, boolean); got ${type ?? "<none>"}`;
+        const fault$1 = `${pathName(path3)}: x-mcp-header is only permitted on primitive-typed properties (string, integer, boolean); got ${type ?? "<none>"}`;
         if (type !== "number") return fault$1;
         numberFault ??= fault$1;
       }
@@ -24424,14 +24424,14 @@ function scanXMcpHeaderDeclarations(inputSchema) {
       if (prior !== void 0) return `x-mcp-header '${raw}' is not case-insensitively unique (also declared as '${prior}')`;
       seenLower.set(lower, raw);
       declarations.push({
-        path: path2,
+        path: path3,
         headerName: raw,
         type
       });
     }
     const properties = schema.properties;
     if (properties !== null && typeof properties === "object") for (const [key, child] of Object.entries(properties)) {
-      const fault$1 = visit2(child, [...path2, key], reachable);
+      const fault$1 = visit2(child, [...path3, key], reachable);
       if (fault$1 !== void 0) return fault$1;
     }
     for (const k2 of NON_REACHABLE_SUBSCHEMA_KEYWORDS) {
@@ -24439,7 +24439,7 @@ function scanXMcpHeaderDeclarations(inputSchema) {
       if (sub === void 0) continue;
       const branches = Array.isArray(sub) ? sub : sub !== null && typeof sub === "object" && OBJECT_VALUED_SUBSCHEMA_KEYWORDS.has(k2) ? Object.values(sub) : [sub];
       for (const branch of branches) {
-        const fault$1 = visit2(branch, [...path2, `<${k2}>`], false);
+        const fault$1 = visit2(branch, [...path3, `<${k2}>`], false);
         if (fault$1 !== void 0) return fault$1;
       }
     }
@@ -24484,8 +24484,8 @@ var OBJECT_VALUED_SUBSCHEMA_KEYWORDS = /* @__PURE__ */ new Set([
   "$defs",
   "definitions"
 ]);
-function pathName(path2) {
-  return path2.length === 0 ? "<root>" : path2.join(".");
+function pathName(path3) {
+  return path3.length === 0 ? "<root>" : path3.join(".");
 }
 var HEADER_MISMATCH_ERROR_CODE = -32020;
 var INBOUND_VALIDATION_LADDER = [
@@ -24777,7 +24777,7 @@ var PROPERTY_KEYS_BY_TYPE = {
   array: shapeKeys([UntitledMultiSelectEnumSchemaSchema, TitledMultiSelectEnumSchemaSchema])
 };
 var SUPPORTED_STRING_FORMATS = new Set(StringSchemaSchema.shape.format.unwrap().options);
-function walkProperty(node2, path2, vendor, unsupported) {
+function walkProperty(node2, path3, vendor, unsupported) {
   if (!isJsonObject(node2)) return node2;
   const allowedKeys = typeof node2.type === "string" && Object.hasOwn(PROPERTY_KEYS_BY_TYPE, node2.type) ? PROPERTY_KEYS_BY_TYPE[node2.type] : void 0;
   if (allowedKeys === void 0) return node2;
@@ -24785,8 +24785,8 @@ function walkProperty(node2, path2, vendor, unsupported) {
   for (const [key, value] of Object.entries(node2)) if (allowedKeys.has(key) || isAnnotationOnlyJsonSchemaKeyword(key)) pruned[key] = value;
   else if (key === "pattern" && node2.type === "string" && typeof node2.format === "string") {
     if (!SUPPORTED_STRING_FORMATS.has(node2.format)) pruned[key] = value;
-    else if (typeof value !== "string" || !isLibraryFormatPattern(node2.format, value, vendor)) unsupported.push(`${path2}.${key}`);
-  } else unsupported.push(`${path2}.${key}`);
+    else if (typeof value !== "string" || !isLibraryFormatPattern(node2.format, value, vendor)) unsupported.push(`${path3}.${key}`);
+  } else unsupported.push(`${path3}.${key}`);
   return pruned;
 }
 function walkRequestedSchema(converted, vendor) {
@@ -24803,11 +24803,11 @@ function describeUnsupportedProperties(pruned, fallback) {
   const offenders = Object.entries(pruned.properties).filter(([, node2]) => !parseSchema(PrimitiveSchemaDefinitionSchema, node2).success).map(([name]) => `properties.${name}`);
   return offenders.length > 0 ? offenders.join(", ") : fallback;
 }
-function findDroppedConstraintPaths(original, parsed, path2 = "") {
-  if (Array.isArray(original) && Array.isArray(parsed)) return original.flatMap((item, index) => findDroppedConstraintPaths(item, parsed[index], `${path2}[${index}]`));
+function findDroppedConstraintPaths(original, parsed, path3 = "") {
+  if (Array.isArray(original) && Array.isArray(parsed)) return original.flatMap((item, index) => findDroppedConstraintPaths(item, parsed[index], `${path3}[${index}]`));
   if (!isJsonObject(original) || !isJsonObject(parsed)) return [];
   return Object.entries(original).flatMap(([key, value]) => {
-    const childPath = path2 ? `${path2}.${key}` : key;
+    const childPath = path3 ? `${path3}.${key}` : key;
     if (!Object.prototype.hasOwnProperty.call(parsed, key)) return isAnnotationOnlyJsonSchemaKeyword(key) ? [] : [childPath];
     return findDroppedConstraintPaths(value, parsed[key], childPath);
   });
@@ -28948,8 +28948,8 @@ var require_utils = /* @__PURE__ */ __commonJSMin(((exports, module) => {
     for (let i = 0; i < str.length; i++) if (str[i] === token) ind++;
     return ind;
   }
-  function removeDotSegments(path2) {
-    let input2 = path2;
+  function removeDotSegments(path3) {
+    let input2 = path3;
     const output2 = [];
     let nextSlash = -1;
     let len = 0;
@@ -29287,8 +29287,8 @@ var require_schemes = /* @__PURE__ */ __commonJSMin(((exports, module) => {
     }
     if (wsComponent.resourceName) {
       const queryIndex = wsComponent.resourceName.indexOf("?");
-      const path2 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
-      wsComponent.path = path2 && path2 !== "/" ? path2 : void 0;
+      const path3 = queryIndex === -1 ? wsComponent.resourceName : wsComponent.resourceName.slice(0, queryIndex);
+      wsComponent.path = path3 && path3 !== "/" ? path3 : void 0;
       wsComponent.query = queryIndex === -1 ? void 0 : wsComponent.resourceName.slice(queryIndex + 1);
       wsComponent.resourceName = void 0;
     }
@@ -37405,9 +37405,81 @@ init_v4();
 
 // src/server/skills.ts
 import { createHash } from "node:crypto";
-import { readdir, readFile, realpath, stat } from "node:fs/promises";
+import { readdir as readdir2, readFile, realpath, stat } from "node:fs/promises";
+import os2 from "node:os";
+import path2 from "node:path";
+
+// src/server/session-activity.ts
+import { createReadStream } from "node:fs";
+import { readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createInterface } from "node:readline";
+var SKILL_PATH = /(?:file:\/\/)?([/~A-Za-z0-9_.+@%:=\\-][^"'\s]*?SKILL\.md)/gi;
+var MAX_SESSION_SEARCH_DEPTH = 5;
+function defaultSessionsRoot() {
+  const codexHome = process.env.CODEX_HOME;
+  return path.join(codexHome ? path.resolve(codexHome) : path.join(os.homedir(), ".codex"), "sessions");
+}
+async function findSessionFile(root, sessionId, depth = 0) {
+  if (depth > MAX_SESSION_SEARCH_DEPTH) return null;
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith(".jsonl") && entry.name.includes(sessionId)) {
+      return path.join(root, entry.name);
+    }
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const match = await findSessionFile(path.join(root, entry.name), sessionId, depth + 1);
+    if (match) return match;
+  }
+  return null;
+}
+function toolInput(payload) {
+  return payload.input ?? payload.arguments ?? payload.tool_input;
+}
+async function readSessionActivity(sessionIds, sessionsRoot = defaultSessionsRoot()) {
+  const records = [];
+  for (const sessionId of [...new Set(sessionIds.filter(Boolean))]) {
+    const sessionFile = await findSessionFile(sessionsRoot, sessionId);
+    if (!sessionFile) continue;
+    const lines = createInterface({ input: createReadStream(sessionFile, { encoding: "utf8" }), crlfDelay: Infinity });
+    for await (const line of lines) {
+      if (!line.includes('"type":"response_item"')) continue;
+      if (!/"payload":\{"type":"(?:custom_tool_call|function_call)"/.test(line)) continue;
+      try {
+        const event = JSON.parse(line);
+        const payload = event.payload;
+        if (event.type !== "response_item" || !payload) continue;
+        if (payload.type !== "custom_tool_call" && payload.type !== "function_call") continue;
+        const normalizedToolName = String(payload.name ?? "").toLowerCase().replace(/[^a-z]/g, "");
+        if (normalizedToolName.includes("skilllens") && normalizedToolName.endsWith("read")) continue;
+        const serializedInput = typeof toolInput(payload) === "string" ? String(toolInput(payload)) : JSON.stringify(toolInput(payload) ?? {});
+        const skillPaths = [...serializedInput.matchAll(SKILL_PATH)].map((match) => match[1]);
+        for (const skillPath of new Set(skillPaths)) {
+          records.push({
+            timestamp: event.timestamp ?? (/* @__PURE__ */ new Date(0)).toISOString(),
+            sessionId,
+            turnId: typeof payload.call_id === "string" ? payload.call_id : null,
+            toolName: typeof payload.name === "string" ? payload.name : null,
+            path: skillPath,
+            detection: "session-log-read"
+          });
+        }
+      } catch {
+      }
+    }
+  }
+  return records.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+// src/server/skills.ts
 var SKILL_FILE = /^skill\.md$/i;
 var MAX_SCAN_DEPTH = 6;
 var MAX_SKILLS = 2500;
@@ -37416,19 +37488,19 @@ function isSkillLensRead(toolName) {
   return normalized.includes("skilllens") && normalized.endsWith("read");
 }
 function expandHome(value) {
-  if (value === "~") return os.homedir();
-  if (value.startsWith("~/")) return path.join(os.homedir(), value.slice(2));
-  return path.resolve(value);
+  if (value === "~") return os2.homedir();
+  if (value.startsWith("~/")) return path2.join(os2.homedir(), value.slice(2));
+  return path2.resolve(value);
 }
 function defaultSkillRoots(cwd = process.cwd()) {
-  const configured = (process.env.SKILL_LENS_ROOTS ?? "").split(path.delimiter).map((value) => value.trim()).filter(Boolean).map(expandHome);
+  const configured = (process.env.SKILL_LENS_ROOTS ?? "").split(path2.delimiter).map((value) => value.trim()).filter(Boolean).map(expandHome);
   return [
     ...configured,
-    path.join(os.homedir(), ".codex", "skills"),
-    path.join(os.homedir(), ".agents", "skills"),
-    path.join(os.homedir(), ".codex", "plugins"),
-    path.join(cwd, ".agents", "skills"),
-    path.join(cwd, ".codex", "skills")
+    path2.join(os2.homedir(), ".codex", "skills"),
+    path2.join(os2.homedir(), ".agents", "skills"),
+    path2.join(os2.homedir(), ".codex", "plugins"),
+    path2.join(cwd, ".agents", "skills"),
+    path2.join(cwd, ".codex", "skills")
   ].filter((value, index, all) => all.indexOf(value) === index);
 }
 function parseFrontmatter(content) {
@@ -37443,12 +37515,12 @@ function parseFrontmatter(content) {
   return { name: valueFor("name"), description: valueFor("description") };
 }
 function classifySource(skillPath, cwd = process.cwd()) {
-  const normalized = path.resolve(skillPath);
-  if (normalized.includes(`${path.sep}.codex${path.sep}plugins${path.sep}`)) return "plugin";
-  if (normalized.startsWith(path.resolve(cwd) + path.sep)) return "project";
-  if (normalized.includes(`${path.sep}.codex${path.sep}skills${path.sep}`)) return "personal";
-  if (normalized.includes(`${path.sep}.agents${path.sep}skills${path.sep}`)) return "personal";
-  if ((process.env.SKILL_LENS_ROOTS ?? "").split(path.delimiter).some((root) => normalized.startsWith(expandHome(root)))) {
+  const normalized = path2.resolve(skillPath);
+  if (normalized.includes(`${path2.sep}.codex${path2.sep}plugins${path2.sep}`)) return "plugin";
+  if (normalized.startsWith(path2.resolve(cwd) + path2.sep)) return "project";
+  if (normalized.includes(`${path2.sep}.codex${path2.sep}skills${path2.sep}`)) return "personal";
+  if (normalized.includes(`${path2.sep}.agents${path2.sep}skills${path2.sep}`)) return "personal";
+  if ((process.env.SKILL_LENS_ROOTS ?? "").split(path2.delimiter).some((root) => normalized.startsWith(expandHome(root)))) {
     return "configured";
   }
   return "other";
@@ -37457,14 +37529,14 @@ async function walk(root, depth = 0, output2 = []) {
   if (depth > MAX_SCAN_DEPTH || output2.length >= MAX_SKILLS) return output2;
   let entries;
   try {
-    entries = await readdir(root, { withFileTypes: true });
+    entries = await readdir2(root, { withFileTypes: true });
   } catch {
     return output2;
   }
   for (const entry of entries) {
     if (output2.length >= MAX_SKILLS) break;
     if (entry.name === "node_modules" || entry.name === ".git") continue;
-    const entryPath = path.join(root, entry.name);
+    const entryPath = path2.join(root, entry.name);
     if (entry.isFile() && SKILL_FILE.test(entry.name)) output2.push(entryPath);
     if (entry.isDirectory()) await walk(entryPath, depth + 1, output2);
   }
@@ -37473,7 +37545,7 @@ async function walk(root, depth = 0, output2 = []) {
 async function readActivity(dataDir = process.env.PLUGIN_DATA) {
   if (!dataDir) return [];
   try {
-    const raw = await readFile(path.join(dataDir, "activity.jsonl"), "utf8");
+    const raw = await readFile(path2.join(dataDir, "activity.jsonl"), "utf8");
     return raw.trim().split("\n").slice(-500).flatMap((line) => {
       try {
         const record2 = JSON.parse(line);
@@ -37488,7 +37560,7 @@ async function readActivity(dataDir = process.env.PLUGIN_DATA) {
 }
 async function scanSkills(options = {}) {
   const cwd = options.cwd ?? process.cwd();
-  const canonicalCwd = await realpath(cwd).catch(() => path.resolve(cwd));
+  const canonicalCwd = await realpath(cwd).catch(() => path2.resolve(cwd));
   const roots = options.roots ?? defaultSkillRoots(cwd);
   const discoveredPaths = (await Promise.all(roots.map((root) => walk(root)))).flat();
   const paths = [
@@ -37498,18 +37570,23 @@ async function scanSkills(options = {}) {
           try {
             return await realpath(skillPath);
           } catch {
-            return path.resolve(skillPath);
+            return path2.resolve(skillPath);
           }
         })
       )
     )
   ];
-  const activity = await readActivity(options.dataDir);
-  const sessionIds = new Set((options.sessionIds ?? []).filter(Boolean));
+  const sessionIdList = (options.sessionIds ?? []).filter(Boolean);
+  const sessionIds = new Set(sessionIdList);
+  const [hookActivity, sessionActivity] = await Promise.all([
+    readActivity(options.dataDir),
+    readSessionActivity(sessionIdList, options.sessionsRoot)
+  ]);
+  const activity = [...sessionActivity, ...hookActivity].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 500);
   const latestByPath = /* @__PURE__ */ new Map();
   const sessionLatestByPath = /* @__PURE__ */ new Map();
   for (const record2 of activity) {
-    const expanded = path.resolve(expandHome(record2.path));
+    const expanded = path2.resolve(expandHome(record2.path));
     const normalized = await realpath(expanded).catch(() => expanded);
     if (!latestByPath.has(normalized)) latestByPath.set(normalized, record2);
     if (record2.sessionId && sessionIds.has(record2.sessionId) && !sessionLatestByPath.has(normalized)) {
@@ -37521,11 +37598,11 @@ async function scanSkills(options = {}) {
       try {
         const [content, metadata] = await Promise.all([readFile(skillPath, "utf8"), stat(skillPath)]);
         const frontmatter = parseFrontmatter(content);
-        const observed = latestByPath.get(path.resolve(skillPath));
-        const sessionObserved = sessionLatestByPath.get(path.resolve(skillPath));
+        const observed = latestByPath.get(path2.resolve(skillPath));
+        const sessionObserved = sessionLatestByPath.get(path2.resolve(skillPath));
         return {
-          id: createHash("sha1").update(path.resolve(skillPath)).digest("hex").slice(0, 12),
-          name: frontmatter.name || path.basename(path.dirname(skillPath)),
+          id: createHash("sha1").update(path2.resolve(skillPath)).digest("hex").slice(0, 12),
+          name: frontmatter.name || path2.basename(path2.dirname(skillPath)),
           description: frontmatter.description || "\u6CA1\u6709 description \u5143\u6570\u636E",
           path: skillPath,
           source: classifySource(skillPath, canonicalCwd),
@@ -37557,14 +37634,14 @@ async function scanSkills(options = {}) {
       observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length
     },
     notices: [
-      "\u5F53\u524D Session \u53EA\u663E\u793A\u672C\u5730 Hook \u5728\u672C\u4F1A\u8BDD\u4E2D\u89C2\u6D4B\u5230\u7684 SKILL.md \u8BFB\u53D6\uFF0C\u4E0D\u7B49\u540C\u4E8E Codex \u5B98\u65B9 SkillActivated \u4E8B\u4EF6\u3002",
+      "\u5F53\u524D Session \u6765\u81EA\u672C\u5730\u4F1A\u8BDD\u65E5\u5FD7\u4E0E Hook \u4E2D\u53EF\u6838\u5BF9\u7684 SKILL.md \u5DE5\u5177\u8BFB\u53D6\uFF0C\u4E0D\u7B49\u540C\u4E8E Codex \u5B98\u65B9 SkillActivated \u4E8B\u4EF6\u3002",
       ...paths.length >= MAX_SKILLS ? [`\u626B\u63CF\u8FBE\u5230 ${MAX_SKILLS} \u4E2A Skill \u7684\u5B89\u5168\u4E0A\u9650\u3002`] : []
     ]
   };
 }
 async function readSkill(skillPath, snapshot) {
-  const resolved = path.resolve(skillPath);
-  const summary = snapshot.skills.find((skill) => path.resolve(skill.path) === resolved);
+  const resolved = path2.resolve(skillPath);
+  const summary = snapshot.skills.find((skill) => path2.resolve(skill.path) === resolved);
   if (!summary) throw new Error("Skill \u4E0D\u5728\u5F53\u524D\u5141\u8BB8\u7684\u626B\u63CF\u7ED3\u679C\u4E2D\u3002");
   return { ...summary, content: await readFile(summary.path, "utf8") };
 }
@@ -37603,7 +37680,7 @@ serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.1",
+    version: "0.1.2",
     icons
   });
   const html = await readFile2(new URL("./app.html", import.meta.url), "utf8");
@@ -37660,9 +37737,9 @@ serveStdio(async () => {
       annotations: readonly2,
       _meta: { ui: { visibility: ["app"] } }
     },
-    async ({ path: path2 }, extra) => {
+    async ({ path: path3 }, extra) => {
       const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra) });
-      return result({ detail: await readSkill(path2, snapshot) });
+      return result({ detail: await readSkill(path3, snapshot) });
     }
   );
   return server;

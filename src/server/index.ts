@@ -47,7 +47,7 @@ serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.1",
+    version: "0.1.2",
     icons,
   });
   const html = await readFile(new URL("./app.html", import.meta.url), "utf8");
