@@ -9,6 +9,7 @@ export type SkillSummary = {
   modifiedAt: string;
   observedAt: string | null;
   observedSessionId: string | null;
+  sessionObservedAt: string | null;
 };
 
 export type SkillDetail = SkillSummary & {
@@ -30,4 +31,8 @@ export type SkillSnapshot = {
   activity: ActivityRecord[];
   roots: string[];
   notices: string[];
+  currentSession: {
+    trackingAvailable: boolean;
+    observedSkillCount: number;
+  };
 };

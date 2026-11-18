@@ -15,6 +15,11 @@ const SKILL_FILE = /^skill\.md$/i;
 const MAX_SCAN_DEPTH = 6;
 const MAX_SKILLS = 2500;
 
+function isSkillLensRead(toolName: string | null): boolean {
+  const normalized = (toolName ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  return normalized.includes("skilllens") && normalized.endsWith("read");
+}
+
 function expandHome(value: string): string {
   if (value === "~") return os.homedir();
   if (value.startsWith("~/")) return path.join(os.homedir(), value.slice(2));
@@ -89,7 +94,8 @@ export async function readActivity(dataDir = process.env.PLUGIN_DATA): Promise<A
       .slice(-500)
       .flatMap((line) => {
         try {
-          return [JSON.parse(line) as ActivityRecord];
+          const record = JSON.parse(line) as ActivityRecord;
+          return isSkillLensRead(record.toolName) ? [] : [record];
         } catch {
           return [];
         }
@@ -104,6 +110,7 @@ export async function scanSkills(options: {
   roots?: string[];
   cwd?: string;
   dataDir?: string;
+  sessionIds?: string[];
 } = {}): Promise<SkillSnapshot> {
   const cwd = options.cwd ?? process.cwd();
   const canonicalCwd = await realpath(cwd).catch(() => path.resolve(cwd));
@@ -123,10 +130,16 @@ export async function scanSkills(options: {
     ),
   ];
   const activity = await readActivity(options.dataDir);
+  const sessionIds = new Set((options.sessionIds ?? []).filter(Boolean));
   const latestByPath = new Map<string, ActivityRecord>();
+  const sessionLatestByPath = new Map<string, ActivityRecord>();
   for (const record of activity) {
-    const normalized = path.resolve(expandHome(record.path));
+    const expanded = path.resolve(expandHome(record.path));
+    const normalized = await realpath(expanded).catch(() => expanded);
     if (!latestByPath.has(normalized)) latestByPath.set(normalized, record);
+    if (record.sessionId && sessionIds.has(record.sessionId) && !sessionLatestByPath.has(normalized)) {
+      sessionLatestByPath.set(normalized, record);
+    }
   }
 
   const skills = (
@@ -136,6 +149,7 @@ export async function scanSkills(options: {
           const [content, metadata] = await Promise.all([readFile(skillPath, "utf8"), stat(skillPath)]);
           const frontmatter = parseFrontmatter(content);
           const observed = latestByPath.get(path.resolve(skillPath));
+          const sessionObserved = sessionLatestByPath.get(path.resolve(skillPath));
           return {
             id: createHash("sha1").update(path.resolve(skillPath)).digest("hex").slice(0, 12),
             name: frontmatter.name || path.basename(path.dirname(skillPath)),
@@ -145,6 +159,7 @@ export async function scanSkills(options: {
             modifiedAt: metadata.mtime.toISOString(),
             observedAt: observed?.timestamp ?? null,
             observedSessionId: observed?.sessionId ?? null,
+            sessionObservedAt: sessionObserved?.timestamp ?? null,
           };
         } catch {
           return null;
@@ -154,6 +169,9 @@ export async function scanSkills(options: {
   )
     .filter((skill): skill is SkillSummary => skill !== null)
     .sort((a, b) => {
+      if (a.sessionObservedAt && b.sessionObservedAt) return b.sessionObservedAt.localeCompare(a.sessionObservedAt);
+      if (a.sessionObservedAt) return -1;
+      if (b.sessionObservedAt) return 1;
       if (a.observedAt && b.observedAt) return b.observedAt.localeCompare(a.observedAt);
       if (a.observedAt) return -1;
       if (b.observedAt) return 1;
@@ -165,8 +183,12 @@ export async function scanSkills(options: {
     skills,
     activity,
     roots,
+    currentSession: {
+      trackingAvailable: sessionIds.size > 0,
+      observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length,
+    },
     notices: [
-      "“检测到读取”来自本地工具 Hook，不等同于 Codex 官方 SkillActivated 事件。",
+      "当前 Session 只显示本地 Hook 在本会话中观测到的 SKILL.md 读取，不等同于 Codex 官方 SkillActivated 事件。",
       ...(paths.length >= MAX_SKILLS ? [`扫描达到 ${MAX_SKILLS} 个 Skill 的安全上限。`] : []),
     ],
   };
