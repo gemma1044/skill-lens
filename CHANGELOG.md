@@ -1,5 +1,11 @@
 # Changelog
 
+## Preview v0.1.1 — 当前 Session 视图
+
+- 默认仅显示当前 Session 中由 Hook 观测到读取的 Skill。
+- 将全量扫描结果移入“全部 Skill”，并区分当前读取与历史读取。
+- 当前会话无证据或无法识别时显示明确空状态，不再把已安装 Skill 当作已加载 Skill。
+
 ## Preview v0.1.0 — Skill 可视化工作台
 
 - 新增 Codex 全局侧边栏和会话侧栏入口。

@@ -34,11 +34,20 @@ function result(data: Record<string, unknown>) {
   };
 }
 
+function currentSessionIds(extra?: unknown): string[] {
+  const metadata = (extra as { _meta?: Record<string, unknown> } | undefined)?._meta;
+  const openAiSession = metadata?.["openai/session"];
+  return [...new Set([
+    process.env.CODEX_THREAD_ID,
+    typeof openAiSession === "string" ? openAiSession : undefined,
+  ].filter((value): value is string => Boolean(value)))];
+}
+
 serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.0",
+    version: "0.1.1",
     icons,
   });
   const html = await readFile(new URL("./app.html", import.meta.url), "utf8");
@@ -75,7 +84,7 @@ serveStdio(async () => {
         "openai/iconStyle": "monochrome",
       },
     },
-    async () => result({ snapshot: await scanSkills() }),
+    async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) }),
   );
 
   server.registerTool(
@@ -87,7 +96,7 @@ serveStdio(async () => {
       annotations: readonly,
       _meta: { ui: { visibility: ["app"] } },
     },
-    async () => result({ snapshot: await scanSkills() }),
+    async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) }),
   );
 
   server.registerTool(
@@ -99,8 +108,8 @@ serveStdio(async () => {
       annotations: readonly,
       _meta: { ui: { visibility: ["app"] } },
     },
-    async ({ path }) => {
-      const snapshot = await scanSkills();
+    async ({ path }, extra) => {
+      const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra) });
       return result({ detail: await readSkill(path, snapshot) });
     },
   );

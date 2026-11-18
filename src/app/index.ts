@@ -8,27 +8,29 @@ declare global {
 }
 
 type ViewMode = "read" | "raw";
+type CatalogView = "session" | "all";
 type State = {
   snapshot: SkillSnapshot | null;
   detail: SkillDetail | null;
   selectedPath: string | null;
   query: string;
   source: "all" | SkillSource;
-  observedOnly: boolean;
+  catalogView: CatalogView;
   viewMode: ViewMode;
   loading: boolean;
 };
 
-const state: State = { snapshot: null, detail: null, selectedPath: null, query: "", source: "all", observedOnly: false, viewMode: "read", loading: true };
+const state: State = { snapshot: null, detail: null, selectedPath: null, query: "", source: "all", catalogView: "session", viewMode: "read", loading: true };
 const root = document.querySelector<HTMLDivElement>("#app")!;
-const app = new App({ name: "skill-lens", version: "0.1.0" });
+const app = new App({ name: "skill-lens", version: "0.1.1" });
 const previewConfig = window.__SKILL_LENS_PREVIEW__;
 const previewApi = typeof previewConfig === "object" ? (previewConfig.apiBase ?? "") : null;
 
 const fallbackSnapshot: SkillSnapshot = {
   generatedAt: new Date().toISOString(), roots: [], activity: [],
   notices: ["演示数据。运行 npm run preview 可浏览本机真实 Skill。"],
-  skills: [{ id: "demo", name: "example-skill", source: "other", description: "这是静态演示条目，不代表你本机 Skill 的真实长度。", path: "/demo/example-skill/SKILL.md", modifiedAt: new Date().toISOString(), observedAt: null, observedSessionId: null }],
+  currentSession: { trackingAvailable: true, observedSkillCount: 1 },
+  skills: [{ id: "demo", name: "example-skill", source: "other", description: "这是静态演示条目，不代表你本机 Skill 的真实长度。", path: "/demo/example-skill/SKILL.md", modifiedAt: new Date().toISOString(), observedAt: new Date().toISOString(), observedSessionId: "demo", sessionObservedAt: new Date().toISOString() }],
 };
 const fallbackDetail: SkillDetail = { ...fallbackSnapshot.skills[0]!, content: "# Example Skill\n\n静态文件仅展示界面。通过本地预览服务或安装插件后，这里会显示完整、真实的 SKILL.md。" };
 
@@ -81,7 +83,25 @@ function relativeTime(value: string | null): string {
 
 function filteredSkills(): SkillSummary[] {
   const query = state.query.trim().toLowerCase();
-  return (state.snapshot?.skills ?? []).filter((skill) => (!query || `${skill.name} ${skill.description} ${skill.path}`.toLowerCase().includes(query)) && (state.source === "all" || skill.source === state.source) && (!state.observedOnly || Boolean(skill.observedAt)));
+  return (state.snapshot?.skills ?? []).filter((skill) =>
+    (!query || `${skill.name} ${skill.description} ${skill.path}`.toLowerCase().includes(query))
+    && (state.source === "all" || skill.source === state.source)
+    && (state.catalogView === "all" || Boolean(skill.sessionObservedAt)),
+  );
+}
+
+function observationLabel(skill: SkillSummary): string {
+  if (skill.sessionObservedAt) return relativeTime(skill.sessionObservedAt);
+  if (skill.observedAt) return `历史记录 · ${relativeTime(skill.observedAt)}`;
+  return "";
+}
+
+function emptyList(): string {
+  if (state.catalogView === "all") return `<div class="empty">没有匹配的 Skill</div>`;
+  if (!state.snapshot?.currentSession.trackingAvailable) {
+    return `<div class="empty session-empty"><strong>无法识别当前 Session</strong><span>请重启 Codex Desktop，让插件获得本会话标识。</span><button data-catalog="all">查看全部 Skill</button></div>`;
+  }
+  return `<div class="empty session-empty"><strong>本 Session 还没有读取记录</strong><span>只有被工具实际读取的 SKILL.md 才会出现在这里。</span><button data-catalog="all">查看全部 Skill</button></div>`;
 }
 
 function render(): void {
@@ -93,24 +113,35 @@ function render(): void {
   root.innerHTML = `
     <main class="shell">
       <aside class="rail">
-        <header class="topbar"><div class="wordmark"><span class="lens" aria-hidden="true"></span><strong>Skill Lens</strong><span>${state.snapshot.skills.length}</span></div><button class="plain-button" id="refresh" title="重新扫描" aria-label="重新扫描">↻</button></header>
-        <div class="controls"><input class="search" id="search" type="search" value="${escapeHtml(state.query)}" placeholder="搜索 Skill" aria-label="搜索 Skill" /><div class="filter-row"><select id="source" aria-label="按来源筛选">${sourceOptions}</select><label class="observed-toggle"><input id="observed" type="checkbox" ${state.observedOnly ? "checked" : ""} /> 只看读取过</label></div></div>
+        <header class="topbar"><div class="wordmark"><span class="lens" aria-hidden="true"></span><strong>Skill Lens</strong></div><button class="plain-button" id="refresh" title="重新扫描" aria-label="重新扫描">↻</button></header>
+        <div class="scope-switch" role="tablist" aria-label="Skill 范围"><button data-catalog="session" role="tab" aria-selected="${state.catalogView === "session"}">当前 Session <span>${state.snapshot.currentSession.observedSkillCount}</span></button><button data-catalog="all" role="tab" aria-selected="${state.catalogView === "all"}">全部 Skill <span>${state.snapshot.skills.length}</span></button></div>
+        <div class="controls"><input class="search" id="search" type="search" value="${escapeHtml(state.query)}" placeholder="搜索${state.catalogView === "session" ? "当前 Session" : "全部 Skill"}" aria-label="搜索 Skill" /><div class="filter-row"><select id="source" aria-label="按来源筛选">${sourceOptions}</select><span>${skills.length} 项</span></div></div>
         <div class="skill-list" aria-label="Skill 列表">
-          ${skills.length ? skills.map((skill) => `<button class="skill-row" data-path="${escapeHtml(skill.path)}" aria-current="${state.selectedPath === skill.path}"><span class="row-head"><strong>${escapeHtml(skill.name)}</strong><span>${sourceLabel(skill.source)}</span></span><span class="skill-description">${escapeHtml(skill.description)}</span>${skill.observedAt ? `<span class="observed"><i></i>${relativeTime(skill.observedAt)}</span>` : ""}</button>`).join("") : `<div class="empty">没有匹配的 Skill</div>`}
+          ${skills.length ? skills.map((skill) => `<button class="skill-row" data-path="${escapeHtml(skill.path)}" aria-current="${state.selectedPath === skill.path}"><span class="row-head"><strong>${escapeHtml(skill.name)}</strong><span>${sourceLabel(skill.source)}</span></span><span class="skill-description">${escapeHtml(skill.description)}</span>${observationLabel(skill) ? `<span class="observed ${skill.sessionObservedAt ? "" : "historical"}"><i></i>${observationLabel(skill)}</span>` : ""}</button>`).join("") : emptyList()}
         </div>
       </aside>
       <section class="viewer">
-        ${selected ? `<header class="viewer-head"><div class="title-line"><h1>${escapeHtml(selected.name)}</h1>${selected.observedAt ? `<span class="status"><i></i>${relativeTime(selected.observedAt)}</span>` : ""}</div><p>${escapeHtml(selected.description)}</p><div class="meta"><span>${sourceLabel(selected.source)}</span><span title="${escapeHtml(selected.path)}">${escapeHtml(selected.path)}</span></div></header><div class="document-toolbar"><div class="view-switch" role="group" aria-label="内容显示方式"><button data-view="read" aria-pressed="${state.viewMode === "read"}">阅读</button><button data-view="raw" aria-pressed="${state.viewMode === "raw"}">原文</button></div><button class="copy" id="copy">复制全文</button></div>${state.viewMode === "read" ? `<article class="skill-document">${markdownBody(selected.content)}</article>` : `<pre class="raw-document">${escapeHtml(selected.content)}</pre>`}<footer class="scope-note">${escapeHtml(state.snapshot.notices[0] ?? "只读浏览，不修改 Skill。")}</footer>` : `<div class="empty viewer-empty">选择一个 Skill 查看完整内容</div>`}
+        ${selected ? `<header class="viewer-head"><div class="title-line"><h1>${escapeHtml(selected.name)}</h1>${observationLabel(selected) ? `<span class="status ${selected.sessionObservedAt ? "" : "historical"}"><i></i>${observationLabel(selected)}</span>` : ""}</div><p>${escapeHtml(selected.description)}</p><div class="meta"><span>${sourceLabel(selected.source)}</span><span title="${escapeHtml(selected.path)}">${escapeHtml(selected.path)}</span></div></header><div class="document-toolbar"><div class="view-switch" role="group" aria-label="内容显示方式"><button data-view="read" aria-pressed="${state.viewMode === "read"}">阅读</button><button data-view="raw" aria-pressed="${state.viewMode === "raw"}">原文</button></div><button class="copy" id="copy">复制全文</button></div>${state.viewMode === "read" ? `<article class="skill-document">${markdownBody(selected.content)}</article>` : `<pre class="raw-document">${escapeHtml(selected.content)}</pre>`}<footer class="scope-note">${escapeHtml(state.snapshot.notices[0] ?? "只读浏览，不修改 Skill。")}</footer>` : `<div class="empty viewer-empty">${state.catalogView === "session" ? "本 Session 暂无可查看的 Skill" : "选择一个 Skill 查看完整内容"}</div>`}
       </section>
     </main>`;
 
   root.querySelector<HTMLInputElement>("#search")?.addEventListener("input", (event) => { state.query = (event.target as HTMLInputElement).value; render(); const input = root.querySelector<HTMLInputElement>("#search"); input?.focus(); input?.setSelectionRange(state.query.length, state.query.length); });
   root.querySelector<HTMLSelectElement>("#source")?.addEventListener("change", (event) => { state.source = (event.target as HTMLSelectElement).value as State["source"]; render(); });
-  root.querySelector<HTMLInputElement>("#observed")?.addEventListener("change", (event) => { state.observedOnly = (event.target as HTMLInputElement).checked; render(); });
+  root.querySelectorAll<HTMLButtonElement>("[data-catalog]").forEach((button) => button.addEventListener("click", () => void switchCatalog(button.dataset.catalog as CatalogView)));
   root.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => button.addEventListener("click", () => void selectSkill(button.dataset.path!)));
   root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((button) => button.addEventListener("click", () => { state.viewMode = button.dataset.view as ViewMode; render(); }));
   root.querySelector<HTMLButtonElement>("#refresh")?.addEventListener("click", () => void refresh());
   root.querySelector<HTMLButtonElement>("#copy")?.addEventListener("click", async () => { if (!state.detail) return; await navigator.clipboard.writeText(state.detail.content); const button = root.querySelector<HTMLButtonElement>("#copy"); if (button) { button.textContent = "已复制"; setTimeout(() => { button.textContent = "复制全文"; }, 1200); } });
+}
+
+async function switchCatalog(catalogView: CatalogView): Promise<void> {
+  state.catalogView = catalogView;
+  const skills = filteredSkills();
+  if (state.selectedPath && skills.some((skill) => skill.path === state.selectedPath)) { render(); return; }
+  state.selectedPath = null;
+  state.detail = null;
+  if (skills[0]) await selectSkill(skills[0].path);
+  else render();
 }
 
 async function previewRequest<T>(path: string): Promise<T> {
@@ -149,9 +180,10 @@ async function refresh(): Promise<void> {
     if (content?.snapshot) state.snapshot = content.snapshot;
   }
   if (!state.snapshot) return;
-  if (state.selectedPath && state.snapshot.skills.some((skill) => skill.path === state.selectedPath)) await selectSkill(state.selectedPath);
-  else if (state.snapshot.skills[0]) await selectSkill(state.snapshot.skills[0].path);
-  else render();
+  const skills = filteredSkills();
+  if (state.selectedPath && skills.some((skill) => skill.path === state.selectedPath)) await selectSkill(state.selectedPath);
+  else if (skills[0]) await selectSkill(skills[0].path);
+  else { state.selectedPath = null; state.detail = null; render(); }
 }
 
 if (previewApi !== null) { await refresh(); state.loading = false; render(); }
@@ -161,7 +193,8 @@ else {
     if (content?.snapshot) state.snapshot = content.snapshot;
     if (content?.detail) { state.detail = content.detail; state.selectedPath = content.detail.path; }
     state.loading = false;
-    if (!state.selectedPath && state.snapshot?.skills[0]) void selectSkill(state.snapshot.skills[0].path); else render();
+    const skills = filteredSkills();
+    if (!state.selectedPath && skills[0]) void selectSkill(skills[0].path); else render();
   };
   await app.connect();
 }

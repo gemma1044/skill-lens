@@ -37411,6 +37411,10 @@ import path from "node:path";
 var SKILL_FILE = /^skill\.md$/i;
 var MAX_SCAN_DEPTH = 6;
 var MAX_SKILLS = 2500;
+function isSkillLensRead(toolName) {
+  const normalized = (toolName ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  return normalized.includes("skilllens") && normalized.endsWith("read");
+}
 function expandHome(value) {
   if (value === "~") return os.homedir();
   if (value.startsWith("~/")) return path.join(os.homedir(), value.slice(2));
@@ -37472,7 +37476,8 @@ async function readActivity(dataDir = process.env.PLUGIN_DATA) {
     const raw = await readFile(path.join(dataDir, "activity.jsonl"), "utf8");
     return raw.trim().split("\n").slice(-500).flatMap((line) => {
       try {
-        return [JSON.parse(line)];
+        const record2 = JSON.parse(line);
+        return isSkillLensRead(record2.toolName) ? [] : [record2];
       } catch {
         return [];
       }
@@ -37500,10 +37505,16 @@ async function scanSkills(options = {}) {
     )
   ];
   const activity = await readActivity(options.dataDir);
+  const sessionIds = new Set((options.sessionIds ?? []).filter(Boolean));
   const latestByPath = /* @__PURE__ */ new Map();
+  const sessionLatestByPath = /* @__PURE__ */ new Map();
   for (const record2 of activity) {
-    const normalized = path.resolve(expandHome(record2.path));
+    const expanded = path.resolve(expandHome(record2.path));
+    const normalized = await realpath(expanded).catch(() => expanded);
     if (!latestByPath.has(normalized)) latestByPath.set(normalized, record2);
+    if (record2.sessionId && sessionIds.has(record2.sessionId) && !sessionLatestByPath.has(normalized)) {
+      sessionLatestByPath.set(normalized, record2);
+    }
   }
   const skills = (await Promise.all(
     paths.map(async (skillPath) => {
@@ -37511,6 +37522,7 @@ async function scanSkills(options = {}) {
         const [content, metadata] = await Promise.all([readFile(skillPath, "utf8"), stat(skillPath)]);
         const frontmatter = parseFrontmatter(content);
         const observed = latestByPath.get(path.resolve(skillPath));
+        const sessionObserved = sessionLatestByPath.get(path.resolve(skillPath));
         return {
           id: createHash("sha1").update(path.resolve(skillPath)).digest("hex").slice(0, 12),
           name: frontmatter.name || path.basename(path.dirname(skillPath)),
@@ -37519,13 +37531,17 @@ async function scanSkills(options = {}) {
           source: classifySource(skillPath, canonicalCwd),
           modifiedAt: metadata.mtime.toISOString(),
           observedAt: observed?.timestamp ?? null,
-          observedSessionId: observed?.sessionId ?? null
+          observedSessionId: observed?.sessionId ?? null,
+          sessionObservedAt: sessionObserved?.timestamp ?? null
         };
       } catch {
         return null;
       }
     })
   )).filter((skill) => skill !== null).sort((a, b) => {
+    if (a.sessionObservedAt && b.sessionObservedAt) return b.sessionObservedAt.localeCompare(a.sessionObservedAt);
+    if (a.sessionObservedAt) return -1;
+    if (b.sessionObservedAt) return 1;
     if (a.observedAt && b.observedAt) return b.observedAt.localeCompare(a.observedAt);
     if (a.observedAt) return -1;
     if (b.observedAt) return 1;
@@ -37536,8 +37552,12 @@ async function scanSkills(options = {}) {
     skills,
     activity,
     roots,
+    currentSession: {
+      trackingAvailable: sessionIds.size > 0,
+      observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length
+    },
     notices: [
-      "\u201C\u68C0\u6D4B\u5230\u8BFB\u53D6\u201D\u6765\u81EA\u672C\u5730\u5DE5\u5177 Hook\uFF0C\u4E0D\u7B49\u540C\u4E8E Codex \u5B98\u65B9 SkillActivated \u4E8B\u4EF6\u3002",
+      "\u5F53\u524D Session \u53EA\u663E\u793A\u672C\u5730 Hook \u5728\u672C\u4F1A\u8BDD\u4E2D\u89C2\u6D4B\u5230\u7684 SKILL.md \u8BFB\u53D6\uFF0C\u4E0D\u7B49\u540C\u4E8E Codex \u5B98\u65B9 SkillActivated \u4E8B\u4EF6\u3002",
       ...paths.length >= MAX_SKILLS ? [`\u626B\u63CF\u8FBE\u5230 ${MAX_SKILLS} \u4E2A Skill \u7684\u5B89\u5168\u4E0A\u9650\u3002`] : []
     ]
   };
@@ -37571,11 +37591,19 @@ function result(data) {
     structuredContent: data
   };
 }
+function currentSessionIds(extra) {
+  const metadata = extra?._meta;
+  const openAiSession = metadata?.["openai/session"];
+  return [...new Set([
+    process.env.CODEX_THREAD_ID,
+    typeof openAiSession === "string" ? openAiSession : void 0
+  ].filter((value) => Boolean(value)))];
+}
 serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.0",
+    version: "0.1.1",
     icons
   });
   const html = await readFile2(new URL("./app.html", import.meta.url), "utf8");
@@ -37610,7 +37638,7 @@ serveStdio(async () => {
         "openai/iconStyle": "monochrome"
       }
     },
-    async () => result({ snapshot: await scanSkills() })
+    async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) })
   );
   server.registerTool(
     "skillLens.list",
@@ -37621,7 +37649,7 @@ serveStdio(async () => {
       annotations: readonly2,
       _meta: { ui: { visibility: ["app"] } }
     },
-    async () => result({ snapshot: await scanSkills() })
+    async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) })
   );
   server.registerTool(
     "skillLens.read",
@@ -37632,8 +37660,8 @@ serveStdio(async () => {
       annotations: readonly2,
       _meta: { ui: { visibility: ["app"] } }
     },
-    async ({ path: path2 }) => {
-      const snapshot = await scanSkills();
+    async ({ path: path2 }, extra) => {
+      const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra) });
       return result({ detail: await readSkill(path2, snapshot) });
     }
   );

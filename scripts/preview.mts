@@ -9,19 +9,21 @@ const host = "127.0.0.1";
 const port = Number(process.env.PORT ?? 4173);
 const htmlPath = path.resolve("dist/preview.html");
 let snapshot: SkillSnapshot | null = null;
+const sessionIds = [process.env.SKILL_LENS_PREVIEW_SESSION, process.env.CODEX_THREAD_ID]
+  .filter((value): value is string => Boolean(value));
 
 createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", `http://${host}:${port}`);
     response.setHeader("Cache-Control", "no-store");
     if (url.pathname === "/api/snapshot") {
-      snapshot = await scanSkills();
+      snapshot = await scanSkills({ sessionIds });
       response.setHeader("Content-Type", "application/json; charset=utf-8");
       response.end(JSON.stringify({ snapshot }));
       return;
     }
     if (url.pathname === "/api/skill") {
-      snapshot ??= await scanSkills();
+      snapshot ??= await scanSkills({ sessionIds });
       const skillPath = url.searchParams.get("path");
       if (!skillPath) throw new Error("Missing Skill path");
       const detail = await readSkill(skillPath, snapshot);

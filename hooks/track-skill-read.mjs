@@ -7,6 +7,8 @@ for await (const chunk of process.stdin) raw += chunk;
 
 try {
   const event = JSON.parse(raw);
+  const normalizedToolName = String(event.tool_name ?? "").toLowerCase().replace(/[^a-z]/g, "");
+  if (normalizedToolName.includes("skilllens") && normalizedToolName.endsWith("read")) process.exit(0);
   const serializedInput = JSON.stringify(event.tool_input ?? {});
   const matches = [
     ...serializedInput.matchAll(/(?:file:\/\/)?([/~A-Za-z0-9_.+@%:=\\-][^"'\s]*?SKILL\.md)/gi),
