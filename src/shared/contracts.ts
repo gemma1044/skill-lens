@@ -22,7 +22,7 @@ export type ActivityRecord = {
   turnId: string | null;
   toolName: string | null;
   path: string;
-  detection: "observed-read";
+  detection: "observed-read" | "session-log-read";
 };
 
 export type SkillSnapshot = {

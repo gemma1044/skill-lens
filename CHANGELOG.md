@@ -1,5 +1,11 @@
 # Changelog
 
+## Preview v0.1.2 — Session 日志回溯
+
+- 从当前 Codex Session 的本地工具调用日志恢复已经发生的 `SKILL.md` 读取，不再只依赖启用后的 Hook。
+- 当前会话预览从错误的 0 项恢复为 10 项真实记录。
+- 仅解析工具调用事件，并继续排除 Skill Lens 自身全文查看造成的归因污染。
+
 ## Preview v0.1.1 — 当前 Session 视图
 
 - 默认仅显示当前 Session 中由 Hook 观测到读取的 Skill。

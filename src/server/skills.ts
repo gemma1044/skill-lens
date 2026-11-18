@@ -10,6 +10,7 @@ import type {
   SkillSource,
   SkillSummary,
 } from "../shared/contracts.js";
+import { readSessionActivity } from "./session-activity.js";
 
 const SKILL_FILE = /^skill\.md$/i;
 const MAX_SCAN_DEPTH = 6;
@@ -111,6 +112,7 @@ export async function scanSkills(options: {
   cwd?: string;
   dataDir?: string;
   sessionIds?: string[];
+  sessionsRoot?: string;
 } = {}): Promise<SkillSnapshot> {
   const cwd = options.cwd ?? process.cwd();
   const canonicalCwd = await realpath(cwd).catch(() => path.resolve(cwd));
@@ -129,8 +131,15 @@ export async function scanSkills(options: {
       ),
     ),
   ];
-  const activity = await readActivity(options.dataDir);
-  const sessionIds = new Set((options.sessionIds ?? []).filter(Boolean));
+  const sessionIdList = (options.sessionIds ?? []).filter(Boolean);
+  const sessionIds = new Set(sessionIdList);
+  const [hookActivity, sessionActivity] = await Promise.all([
+    readActivity(options.dataDir),
+    readSessionActivity(sessionIdList, options.sessionsRoot),
+  ]);
+  const activity = [...sessionActivity, ...hookActivity]
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .slice(0, 500);
   const latestByPath = new Map<string, ActivityRecord>();
   const sessionLatestByPath = new Map<string, ActivityRecord>();
   for (const record of activity) {
@@ -188,7 +197,7 @@ export async function scanSkills(options: {
       observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length,
     },
     notices: [
-      "当前 Session 只显示本地 Hook 在本会话中观测到的 SKILL.md 读取，不等同于 Codex 官方 SkillActivated 事件。",
+      "当前 Session 来自本地会话日志与 Hook 中可核对的 SKILL.md 工具读取，不等同于 Codex 官方 SkillActivated 事件。",
       ...(paths.length >= MAX_SKILLS ? [`扫描达到 ${MAX_SKILLS} 个 Skill 的安全上限。`] : []),
     ],
   };
