@@ -1,0 +1,17 @@
+{
+  "description": "Record successful local reads of SKILL.md files for Skill Lens.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${PLUGIN_ROOT}/hooks/track-skill-read.mjs",
+            "timeout": 3,
+            "statusMessage": "Updating Skill Lens"
+          }
+        ]
+      }
+    ]
+  }
+}
