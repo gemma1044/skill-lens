@@ -1,0 +1,21 @@
+{
+  "name": "skill-lens",
+  "version": "0.1.0",
+  "description": "Inspect Codex skills and observed SKILL.md reads from a sidebar app.",
+  "author": {
+    "name": "Gemma"
+  },
+  "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Skill Lens",
+    "shortDescription": "See which skills Codex can use",
+    "longDescription": "Browse local Codex skills, read their exact SKILL.md instructions, and inspect recent skill-file reads observed by a local lifecycle hook.",
+    "developerName": "Gemma",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read"],
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "logoDark": "./assets/icon-dark.svg"
+  }
+}

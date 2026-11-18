@@ -1,0 +1,20 @@
+{
+  "name": "skill-lens-local",
+  "interface": {
+    "displayName": "Skill Lens Local"
+  },
+  "plugins": [
+    {
+      "name": "skill-lens",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
