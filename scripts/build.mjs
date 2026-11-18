@@ -24,7 +24,7 @@ const css = await readFile(path.join(appOut, "index.css"), "utf8");
 const inlineJavascript = javascript.replace(/<\/script/gi, "<\\/script");
 const composeHtml = (preview) => template.replace(
   "</head>",
-  () => `<style>${css}</style>${preview ? "<script>window.__SKILL_LENS_PREVIEW__=true;</script>" : ""}</head>`,
+  () => `<style>${css}</style>${preview ? "<script>window.__SKILL_LENS_PREVIEW__={apiBase:location.origin};</script>" : ""}</head>`,
 ).replace(
   "</body>",
   () => `<script type="module">${inlineJavascript}</script></body>`,
