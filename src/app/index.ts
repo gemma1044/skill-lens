@@ -22,7 +22,7 @@ type State = {
 
 const state: State = { snapshot: null, detail: null, selectedPath: null, query: "", source: "all", catalogView: "session", viewMode: "read", loading: true };
 const root = document.querySelector<HTMLDivElement>("#app")!;
-const app = new App({ name: "skill-lens", version: "0.1.2" });
+const app = new App({ name: "skill-lens", version: "0.1.3" });
 const previewConfig = window.__SKILL_LENS_PREVIEW__;
 const previewApi = typeof previewConfig === "object" ? (previewConfig.apiBase ?? "") : null;
 
@@ -115,7 +115,7 @@ function render(): void {
       <aside class="rail">
         <header class="topbar"><div class="wordmark"><span class="lens" aria-hidden="true"></span><strong>Skill Lens</strong></div><button class="plain-button" id="refresh" title="重新扫描" aria-label="重新扫描">↻</button></header>
         <div class="scope-switch" role="tablist" aria-label="Skill 范围"><button data-catalog="session" role="tab" aria-selected="${state.catalogView === "session"}">当前 Session <span>${state.snapshot.currentSession.observedSkillCount}</span></button><button data-catalog="all" role="tab" aria-selected="${state.catalogView === "all"}">全部 Skill <span>${state.snapshot.skills.length}</span></button></div>
-        <div class="controls"><input class="search" id="search" type="search" value="${escapeHtml(state.query)}" placeholder="搜索${state.catalogView === "session" ? "当前 Session" : "全部 Skill"}" aria-label="搜索 Skill" /><div class="filter-row"><select id="source" aria-label="按来源筛选">${sourceOptions}</select><span>${skills.length} 项</span></div></div>
+        ${state.catalogView === "all" ? `<div class="controls"><input class="search" id="search" type="search" value="${escapeHtml(state.query)}" placeholder="在全部 Skill 中搜索" aria-label="搜索全部 Skill" /><div class="filter-row"><select id="source" aria-label="按来源筛选">${sourceOptions}</select><span>${skills.length} 项</span></div></div>` : `<div class="session-summary"><span>本 Session 检测到读取</span><strong>${skills.length}</strong></div>`}
         <div class="skill-list" aria-label="Skill 列表">
           ${skills.length ? skills.map((skill) => `<button class="skill-row" data-path="${escapeHtml(skill.path)}" aria-current="${state.selectedPath === skill.path}"><span class="row-head"><strong>${escapeHtml(skill.name)}</strong><span>${sourceLabel(skill.source)}</span></span><span class="skill-description">${escapeHtml(skill.description)}</span>${observationLabel(skill) ? `<span class="observed ${skill.sessionObservedAt ? "" : "historical"}"><i></i>${observationLabel(skill)}</span>` : ""}</button>`).join("") : emptyList()}
         </div>
@@ -136,6 +136,10 @@ function render(): void {
 
 async function switchCatalog(catalogView: CatalogView): Promise<void> {
   state.catalogView = catalogView;
+  if (catalogView === "session") {
+    state.query = "";
+    state.source = "all";
+  }
   const skills = filteredSkills();
   if (state.selectedPath && skills.some((skill) => skill.path === state.selectedPath)) { render(); return; }
   state.selectedPath = null;

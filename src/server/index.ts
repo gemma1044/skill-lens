@@ -47,7 +47,7 @@ serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.2",
+    version: "0.1.3",
     icons,
   });
   const html = await readFile(new URL("./app.html", import.meta.url), "utf8");
@@ -71,8 +71,8 @@ serveStdio(async () => {
   server.registerTool(
     "skillLens.open",
     {
-      title: "Open Skill Lens",
-      description: "Open the Skill Lens sidebar app.",
+      title: "Skill Lens",
+      description: "Display the current session's observed Skills in the Skill Lens app. This app-only entrypoint is not a conversational search tool.",
       inputSchema: z.object({}),
       icons,
       annotations: readonly,

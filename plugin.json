@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "skill-lens",
-  "version": "0.1.2",
-  "description": "Inspect Codex skills and observed SKILL.md reads from a sidebar app.",
+  "version": "0.1.3",
+  "description": "Display Codex skills and observed SKILL.md reads in a sidebar app.",
   "author": {
     "name": "Gemma"
   },
@@ -14,8 +14,8 @@
       "hooks": "./hooks/hooks.json",
       "interface": {
         "displayName": "Skill Lens",
-        "shortDescription": "See which skills Codex can use",
-        "longDescription": "Browse local Codex skills, read their exact SKILL.md instructions, and inspect recent skill-file reads observed by a local lifecycle hook.",
+    "shortDescription": "Display your Skills",
+    "longDescription": "Open a read-only sidebar that directly displays Skills observed in the current session, with an optional full catalog and exact SKILL.md instructions.",
         "developerName": "Gemma",
         "category": "Developer Tools",
         "capabilities": ["Interactive", "Read"],
