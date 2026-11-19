@@ -23,8 +23,14 @@ button { cursor: pointer; }
 .scope-switch button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 .scope-switch span { margin-left: 4px; color: var(--muted); font-size: 11px; font-weight: 400; }
 .controls { padding: 8px 12px 10px; border-bottom: 1px solid var(--line); }
-.session-summary { min-height: 42px; padding: 0 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
+.session-summary { min-height: 42px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .session-summary strong { color: var(--ink); font-size: 13px; }
+.session-summary button { border: 0; border-radius: 5px; background: transparent; color: var(--muted); padding: 4px 6px; font-size: 11px; }
+.session-summary button:hover { color: var(--ink); background: #ecece8; }
+.live-state { min-width: 0; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-state i { width: 6px; height: 6px; border-radius: 50%; background: var(--signal); flex: 0 0 auto; }
+.live-state.error { color: #a25434; }
+.live-state.error i { background: #b46443; }
 .search { width: 100%; height: 34px; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 0 10px; outline: 0; }
 .search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .filter-row { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }

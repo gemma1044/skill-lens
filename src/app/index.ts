@@ -1,7 +1,7 @@
 import { App } from "@modelcontextprotocol/ext-apps";
 import "./styles.css";
 
-import type { SkillDetail, SkillSnapshot, SkillSource, SkillSummary } from "../shared/contracts.js";
+import type { SkillDetail, SkillSessionStatus, SkillSnapshot, SkillSource, SkillSummary } from "../shared/contracts.js";
 
 declare global {
   interface Window { __SKILL_LENS_PREVIEW__?: boolean | { apiBase?: string }; }
@@ -9,6 +9,8 @@ declare global {
 
 type ViewMode = "read" | "raw";
 type CatalogView = "session" | "all";
+type SessionMode = "follow" | "pinned";
+type SyncState = "live" | "checking" | "error";
 type State = {
   snapshot: SkillSnapshot | null;
   detail: SkillDetail | null;
@@ -17,19 +19,22 @@ type State = {
   source: "all" | SkillSource;
   catalogView: CatalogView;
   viewMode: ViewMode;
+  sessionMode: SessionMode;
+  pinnedSessionIds: string[] | null;
+  syncState: SyncState;
   loading: boolean;
 };
 
-const state: State = { snapshot: null, detail: null, selectedPath: null, query: "", source: "all", catalogView: "session", viewMode: "read", loading: true };
+const state: State = { snapshot: null, detail: null, selectedPath: null, query: "", source: "all", catalogView: "session", viewMode: "read", sessionMode: "follow", pinnedSessionIds: null, syncState: "live", loading: true };
 const root = document.querySelector<HTMLDivElement>("#app")!;
-const app = new App({ name: "skill-lens", version: "0.1.3" });
+const app = new App({ name: "skill-lens", version: "0.1.4" });
 const previewConfig = window.__SKILL_LENS_PREVIEW__;
 const previewApi = typeof previewConfig === "object" ? (previewConfig.apiBase ?? "") : null;
 
 const fallbackSnapshot: SkillSnapshot = {
   generatedAt: new Date().toISOString(), roots: [], activity: [],
   notices: ["演示数据。运行 npm run preview 可浏览本机真实 Skill。"],
-  currentSession: { trackingAvailable: true, observedSkillCount: 1 },
+  currentSession: { trackingAvailable: true, observedSkillCount: 1, sessionIds: ["demo"], primarySessionId: "demo", activityRevision: "demo" },
   skills: [{ id: "demo", name: "example-skill", source: "other", description: "这是静态演示条目，不代表你本机 Skill 的真实长度。", path: "/demo/example-skill/SKILL.md", modifiedAt: new Date().toISOString(), observedAt: new Date().toISOString(), observedSessionId: "demo", sessionObservedAt: new Date().toISOString() }],
 };
 const fallbackDetail: SkillDetail = { ...fallbackSnapshot.skills[0]!, content: "# Example Skill\n\n静态文件仅展示界面。通过本地预览服务或安装插件后，这里会显示完整、真实的 SKILL.md。" };
@@ -96,6 +101,20 @@ function observationLabel(skill: SkillSummary): string {
   return "";
 }
 
+function requestedSessionIds(): string[] | undefined {
+  return state.sessionMode === "pinned" ? (state.pinnedSessionIds ?? undefined) : undefined;
+}
+
+function sessionModeLabel(): string {
+  return state.sessionMode === "pinned" ? "固定此 Session" : "跟随当前";
+}
+
+function syncLabel(): string {
+  if (state.syncState === "checking") return "正在检查";
+  if (state.syncState === "error") return "自动更新暂时中断";
+  return "自动更新";
+}
+
 function emptyList(): string {
   if (state.catalogView === "all") return `<div class="empty">没有匹配的 Skill</div>`;
   if (!state.snapshot?.currentSession.trackingAvailable) {
@@ -115,7 +134,7 @@ function render(): void {
       <aside class="rail">
         <header class="topbar"><div class="wordmark"><span class="lens" aria-hidden="true"></span><strong>Skill Lens</strong></div><button class="plain-button" id="refresh" title="重新扫描" aria-label="重新扫描">↻</button></header>
         <div class="scope-switch" role="tablist" aria-label="Skill 范围"><button data-catalog="session" role="tab" aria-selected="${state.catalogView === "session"}">当前 Session <span>${state.snapshot.currentSession.observedSkillCount}</span></button><button data-catalog="all" role="tab" aria-selected="${state.catalogView === "all"}">全部 Skill <span>${state.snapshot.skills.length}</span></button></div>
-        ${state.catalogView === "all" ? `<div class="controls"><input class="search" id="search" type="search" value="${escapeHtml(state.query)}" placeholder="在全部 Skill 中搜索" aria-label="搜索全部 Skill" /><div class="filter-row"><select id="source" aria-label="按来源筛选">${sourceOptions}</select><span>${skills.length} 项</span></div></div>` : `<div class="session-summary"><span>本 Session 检测到读取</span><strong>${skills.length}</strong></div>`}
+        ${state.catalogView === "all" ? `<div class="controls"><input class="search" id="search" type="search" value="${escapeHtml(state.query)}" placeholder="在全部 Skill 中搜索" aria-label="搜索全部 Skill" /><div class="filter-row"><select id="source" aria-label="按来源筛选">${sourceOptions}</select><span>${skills.length} 项</span></div></div>` : `<div class="session-summary"><span class="live-state ${state.syncState === "error" ? "error" : ""}"><i></i>${syncLabel()}</span><button id="session-mode" title="${state.sessionMode === "pinned" ? "点击后改为跟随当前 Session" : "点击后固定在此 Session"}">${sessionModeLabel()}</button><strong>${skills.length}</strong></div>`}
         <div class="skill-list" aria-label="Skill 列表">
           ${skills.length ? skills.map((skill) => `<button class="skill-row" data-path="${escapeHtml(skill.path)}" aria-current="${state.selectedPath === skill.path}"><span class="row-head"><strong>${escapeHtml(skill.name)}</strong><span>${sourceLabel(skill.source)}</span></span><span class="skill-description">${escapeHtml(skill.description)}</span>${observationLabel(skill) ? `<span class="observed ${skill.sessionObservedAt ? "" : "historical"}"><i></i>${observationLabel(skill)}</span>` : ""}</button>`).join("") : emptyList()}
         </div>
@@ -131,6 +150,7 @@ function render(): void {
   root.querySelectorAll<HTMLButtonElement>("[data-path]").forEach((button) => button.addEventListener("click", () => void selectSkill(button.dataset.path!)));
   root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((button) => button.addEventListener("click", () => { state.viewMode = button.dataset.view as ViewMode; render(); }));
   root.querySelector<HTMLButtonElement>("#refresh")?.addEventListener("click", () => void refresh());
+  root.querySelector<HTMLButtonElement>("#session-mode")?.addEventListener("click", () => void toggleSessionMode());
   root.querySelector<HTMLButtonElement>("#copy")?.addEventListener("click", async () => { if (!state.detail) return; await navigator.clipboard.writeText(state.detail.content); const button = root.querySelector<HTMLButtonElement>("#copy"); if (button) { button.textContent = "已复制"; setTimeout(() => { button.textContent = "复制全文"; }, 1200); } });
 }
 
@@ -164,22 +184,23 @@ async function selectSkill(skillPath: string): Promise<void> {
         : fallbackDetail;
     render(); return;
   }
-  const response = await app.callServerTool({ name: "skillLens.read", arguments: { path: skillPath } });
+  const response = await app.callServerTool({ name: "skillLens.read", arguments: { path: skillPath, sessionIds: requestedSessionIds() } });
   const content = response.structuredContent as { detail?: SkillDetail } | undefined;
   if (content?.detail) state.detail = content.detail;
   render();
 }
 
-async function refresh(): Promise<void> {
+async function refresh(sessionIds = requestedSessionIds()): Promise<void> {
   if (previewApi !== null) {
     try {
-      state.snapshot = previewApi ? (await previewRequest<{ snapshot: SkillSnapshot }>("/api/snapshot")).snapshot : fallbackSnapshot;
+      const query = sessionIds?.map((id) => `sessionId=${encodeURIComponent(id)}`).join("&");
+      state.snapshot = previewApi ? (await previewRequest<{ snapshot: SkillSnapshot }>(`/api/snapshot${query ? `?${query}` : ""}`)).snapshot : fallbackSnapshot;
     } catch {
       state.snapshot = fallbackSnapshot;
     }
   }
   else {
-    const response = await app.callServerTool({ name: "skillLens.list", arguments: {} });
+    const response = await app.callServerTool({ name: "skillLens.list", arguments: { sessionIds } });
     const content = response.structuredContent as { snapshot?: SkillSnapshot } | undefined;
     if (content?.snapshot) state.snapshot = content.snapshot;
   }
@@ -190,8 +211,64 @@ async function refresh(): Promise<void> {
   else { state.selectedPath = null; state.detail = null; render(); }
 }
 
-if (previewApi !== null) { await refresh(); state.loading = false; render(); }
+async function toggleSessionMode(): Promise<void> {
+  if (state.sessionMode === "follow") {
+    const ids = state.snapshot?.currentSession.sessionIds ?? [];
+    if (!ids.length) return;
+    state.sessionMode = "pinned";
+    state.pinnedSessionIds = [...ids];
+    render();
+    return;
+  }
+  state.sessionMode = "follow";
+  state.pinnedSessionIds = null;
+  render();
+  await checkStatus(true);
+}
+
+let statusCheckRunning = false;
+async function checkStatus(forceRefresh = false): Promise<void> {
+  if (statusCheckRunning || state.loading || document.visibilityState === "hidden") return;
+  statusCheckRunning = true;
+  const previousSyncState = state.syncState;
+  state.syncState = "checking";
+  try {
+    let status: SkillSessionStatus;
+    if (previewApi !== null) {
+      const query = requestedSessionIds()?.map((id) => `sessionId=${encodeURIComponent(id)}`).join("&");
+      status = previewApi
+        ? (await previewRequest<{ status: SkillSessionStatus }>(`/api/status${query ? `?${query}` : ""}`)).status
+        : { trackingAvailable: true, sessionIds: ["demo"], primarySessionId: "demo", activityRevision: "demo", checkedAt: new Date().toISOString() };
+    } else {
+      const response = await app.callServerTool({ name: "skillLens.status", arguments: { sessionIds: requestedSessionIds() } });
+      const content = response.structuredContent as { status?: SkillSessionStatus } | undefined;
+      if (!content?.status) throw new Error("Missing Skill Lens status");
+      status = content.status;
+    }
+    const current = state.snapshot?.currentSession;
+    const sessionChanged = state.sessionMode === "follow"
+      && JSON.stringify(status.sessionIds) !== JSON.stringify(current?.sessionIds ?? []);
+    const activityChanged = status.activityRevision !== current?.activityRevision;
+    state.syncState = "live";
+    if (forceRefresh || sessionChanged || activityChanged) await refresh(status.sessionIds);
+    else if (previousSyncState === "error") render();
+  } catch {
+    state.syncState = "error";
+    if (previousSyncState !== "error") render();
+  } finally {
+    statusCheckRunning = false;
+  }
+}
+
+function startAutoRefresh(): void {
+  window.setInterval(() => void checkStatus(), 2500);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void checkStatus(true); });
+  window.addEventListener("focus", () => void checkStatus());
+}
+
+if (previewApi !== null) { await refresh(); state.loading = false; render(); startAutoRefresh(); }
 else {
+  app.addEventListener("hostcontextchanged", () => { if (state.sessionMode === "follow") void checkStatus(true); });
   app.ontoolresult = (toolResult) => {
     const content = toolResult.structuredContent as { snapshot?: SkillSnapshot; detail?: SkillDetail } | undefined;
     if (content?.snapshot) state.snapshot = content.snapshot;
@@ -201,4 +278,5 @@ else {
     if (!state.selectedPath && skills[0]) void selectSkill(skills[0].path); else render();
   };
   await app.connect();
+  startAutoRefresh();
 }

@@ -7,10 +7,11 @@ import type {
   ActivityRecord,
   SkillDetail,
   SkillSnapshot,
+  SkillSessionStatus,
   SkillSource,
   SkillSummary,
 } from "../shared/contracts.js";
-import { readSessionActivity } from "./session-activity.js";
+import { readSessionActivity, sessionActivityRevision } from "./session-activity.js";
 
 const SKILL_FILE = /^skill\.md$/i;
 const MAX_SCAN_DEPTH = 6;
@@ -107,6 +108,35 @@ export async function readActivity(dataDir = process.env.PLUGIN_DATA): Promise<A
   }
 }
 
+async function hookActivityRevision(dataDir = process.env.PLUGIN_DATA): Promise<string> {
+  if (!dataDir) return "no-hook-data";
+  const activityPath = path.join(dataDir, "activity.jsonl");
+  const metadata = await stat(activityPath).catch(() => null);
+  return metadata ? `${activityPath}:${metadata.size}:${metadata.mtimeMs}` : `${activityPath}:missing`;
+}
+
+export async function getSkillSessionStatus(options: {
+  dataDir?: string;
+  sessionIds?: string[];
+  sessionsRoot?: string;
+} = {}): Promise<SkillSessionStatus> {
+  const sessionIds = [...new Set((options.sessionIds ?? []).filter(Boolean))];
+  const [sessionRevision, hookRevision] = await Promise.all([
+    sessionActivityRevision(sessionIds, options.sessionsRoot),
+    hookActivityRevision(options.dataDir),
+  ]);
+  return {
+    trackingAvailable: sessionIds.length > 0,
+    sessionIds,
+    primarySessionId: sessionIds[0] ?? null,
+    activityRevision: createHash("sha1")
+      .update(`${sessionIds.join("|")}\n${sessionRevision}\n${hookRevision}`)
+      .digest("hex")
+      .slice(0, 16),
+    checkedAt: new Date().toISOString(),
+  };
+}
+
 export async function scanSkills(options: {
   roots?: string[];
   cwd?: string;
@@ -133,9 +163,10 @@ export async function scanSkills(options: {
   ];
   const sessionIdList = (options.sessionIds ?? []).filter(Boolean);
   const sessionIds = new Set(sessionIdList);
-  const [hookActivity, sessionActivity] = await Promise.all([
+  const [hookActivity, sessionActivity, sessionStatus] = await Promise.all([
     readActivity(options.dataDir),
     readSessionActivity(sessionIdList, options.sessionsRoot),
+    getSkillSessionStatus({ dataDir: options.dataDir, sessionIds: sessionIdList, sessionsRoot: options.sessionsRoot }),
   ]);
   const activity = [...sessionActivity, ...hookActivity]
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
@@ -195,6 +226,9 @@ export async function scanSkills(options: {
     currentSession: {
       trackingAvailable: sessionIds.size > 0,
       observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length,
+      sessionIds: sessionStatus.sessionIds,
+      primarySessionId: sessionStatus.primarySessionId,
+      activityRevision: sessionStatus.activityRevision,
     },
     notices: [
       "当前 Session 来自本地会话日志与 Hook 中可核对的 SKILL.md 工具读取，不等同于 Codex 官方 SkillActivated 事件。",
