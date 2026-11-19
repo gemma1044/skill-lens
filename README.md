@@ -58,6 +58,8 @@ codex plugin add skill-lens@skill-lens-local
 
 当前版本：`preview-v0.1.6`。产品计划、视觉规范和里程碑记录分别位于 `docs/plans/`、`docs/design-system/` 与 `docs/product-log/`。
 
+一页使用说明：[`docs/usage/skill-lens-one-page-guide.png`](./docs/usage/skill-lens-one-page-guide.png)
+
 ## License
 
 MIT
