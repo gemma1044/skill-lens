@@ -3,7 +3,7 @@
     "skill-lens": {
       "command": "node",
       "args": ["./dist/server.js"],
-      "cwd": "."
+      "cwd": "${PLUGIN_ROOT}"
     }
   }
 }

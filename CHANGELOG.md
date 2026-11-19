@@ -1,5 +1,10 @@
 # Changelog
 
+## Preview v0.1.5 — 修复桌面插件入口注册
+
+- 将本地 MCP 进程工作目录改为宿主允许的 `${PLUGIN_ROOT}`，避免插件安装后被 Codex 忽略。
+- 补充真实桌面启动验收：只有 Skill Lens 工具成功加载并出现可打开的 GUI 入口，才算安装完成。
+
 ## Preview v0.1.4 — Session 感知自动更新
 
 - 面板可见时每 2.5 秒检查一次轻量活动版本；只有 Session 或活动发生变化时才重新扫描完整 Skill 目录。

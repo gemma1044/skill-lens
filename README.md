@@ -56,7 +56,7 @@ codex plugin add skill-lens@skill-lens-local
 
 ## 开发状态
 
-当前版本：`preview-v0.1.4`。产品计划、视觉规范和里程碑记录分别位于 `docs/plans/`、`docs/design-system/` 与 `docs/product-log/`。
+当前版本：`preview-v0.1.5`。产品计划、视觉规范和里程碑记录分别位于 `docs/plans/`、`docs/design-system/` 与 `docs/product-log/`。
 
 ## License
 
