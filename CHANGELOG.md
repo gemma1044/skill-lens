@@ -1,5 +1,16 @@
 # Changelog
 
+## Preview v0.1.6 — 改为当前会话侧边面板
+
+- 移除会占据主工作区的 `global` 入口，只保留当前 conversation 的 `thread` 入口。
+- UI 资源首选展示模式从 `fullscreen` 改为 `pip`，让 Skill Lens 打开在聊天右侧面板。
+- 更新 UI 资源 URI，避免桌面端继续使用旧的全屏缓存。
+
+## Preview v0.1.5 — 修复桌面插件入口注册
+
+- 将本地 MCP 进程工作目录改为宿主允许的 `${PLUGIN_ROOT}`，避免插件安装后被 Codex 忽略。
+- 补充真实桌面启动验收：只有 Skill Lens 工具成功加载并出现可打开的 GUI 入口，才算安装完成。
+
 ## Preview v0.1.4 — Session 感知自动更新
 
 - 面板可见时每 2.5 秒检查一次轻量活动版本；只有 Session 或活动发生变化时才重新扫描完整 Skill 目录。

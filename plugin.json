@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "skill-lens",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Display Codex skills and observed SKILL.md reads in a sidebar app.",
   "author": {
     "name": "Gemma"
