@@ -9,7 +9,7 @@ import type {
 } from "@openai/mcp-extensions/server";
 import { z } from "zod/v4";
 
-import { readSkill, scanSkills } from "./skills.js";
+import { getSkillSessionStatus, readSkill, scanSkills } from "./skills.js";
 
 const UI_URI = "ui://skill-lens/global-v1";
 const icons = [
@@ -34,12 +34,13 @@ function result(data: Record<string, unknown>) {
   };
 }
 
-function currentSessionIds(extra?: unknown): string[] {
+function currentSessionIds(extra?: unknown, requested?: string[]): string[] {
+  if (requested?.length) return [...new Set(requested.filter(Boolean))];
   const metadata = (extra as { _meta?: Record<string, unknown> } | undefined)?._meta;
   const openAiSession = metadata?.["openai/session"];
   return [...new Set([
-    process.env.CODEX_THREAD_ID,
     typeof openAiSession === "string" ? openAiSession : undefined,
+    process.env.CODEX_THREAD_ID,
   ].filter((value): value is string => Boolean(value)))];
 }
 
@@ -47,7 +48,7 @@ serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.3",
+    version: "0.1.4",
     icons,
   });
   const html = await readFile(new URL("./app.html", import.meta.url), "utf8");
@@ -88,15 +89,27 @@ serveStdio(async () => {
   );
 
   server.registerTool(
+    "skillLens.status",
+    {
+      title: "Check Skill activity",
+      description: "Check the current session identity and activity revision without rescanning the full Skill catalog.",
+      inputSchema: z.object({ sessionIds: z.array(z.string()).max(4).optional() }),
+      annotations: readonly,
+      _meta: { ui: { visibility: ["app"] } },
+    },
+    async ({ sessionIds }, extra) => result({ status: await getSkillSessionStatus({ sessionIds: currentSessionIds(extra, sessionIds) }) }),
+  );
+
+  server.registerTool(
     "skillLens.list",
     {
       title: "Refresh skills",
       description: "Rescan local Skill directories and recent observed reads.",
-      inputSchema: z.object({}),
+      inputSchema: z.object({ sessionIds: z.array(z.string()).max(4).optional() }),
       annotations: readonly,
       _meta: { ui: { visibility: ["app"] } },
     },
-    async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) }),
+    async ({ sessionIds }, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra, sessionIds) }) }),
   );
 
   server.registerTool(
@@ -104,12 +117,12 @@ serveStdio(async () => {
     {
       title: "Read Skill instructions",
       description: "Read the exact SKILL.md content for one discovered Skill.",
-      inputSchema: z.object({ path: z.string() }),
+      inputSchema: z.object({ path: z.string(), sessionIds: z.array(z.string()).max(4).optional() }),
       annotations: readonly,
       _meta: { ui: { visibility: ["app"] } },
     },
-    async ({ path }, extra) => {
-      const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra) });
+    async ({ path, sessionIds }, extra) => {
+      const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra, sessionIds) });
       return result({ detail: await readSkill(path, snapshot) });
     },
   );

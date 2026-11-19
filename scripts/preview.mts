@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { readSkill, scanSkills } from "../src/server/skills.ts";
+import { getSkillSessionStatus, readSkill, scanSkills } from "../src/server/skills.ts";
 import type { SkillSnapshot } from "../src/shared/contracts.ts";
 
 const host = "127.0.0.1";
@@ -17,9 +17,17 @@ createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${host}:${port}`);
     response.setHeader("Cache-Control", "no-store");
     if (url.pathname === "/api/snapshot") {
-      snapshot = await scanSkills({ sessionIds });
+      const requested = url.searchParams.getAll("sessionId");
+      snapshot = await scanSkills({ sessionIds: requested.length ? requested : sessionIds });
       response.setHeader("Content-Type", "application/json; charset=utf-8");
       response.end(JSON.stringify({ snapshot }));
+      return;
+    }
+    if (url.pathname === "/api/status") {
+      const requested = url.searchParams.getAll("sessionId");
+      const status = await getSkillSessionStatus({ sessionIds: requested.length ? requested : sessionIds });
+      response.setHeader("Content-Type", "application/json; charset=utf-8");
+      response.end(JSON.stringify({ status }));
       return;
     }
     if (url.pathname === "/api/skill") {

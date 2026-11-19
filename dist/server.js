@@ -37404,19 +37404,21 @@ var p = "text/html;profile=mcp-app";
 init_v4();
 
 // src/server/skills.ts
-import { createHash } from "node:crypto";
-import { readdir as readdir2, readFile, realpath, stat } from "node:fs/promises";
+import { createHash as createHash2 } from "node:crypto";
+import { readdir as readdir2, readFile, realpath, stat as stat2 } from "node:fs/promises";
 import os2 from "node:os";
 import path2 from "node:path";
 
 // src/server/session-activity.ts
 import { createReadStream } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 var SKILL_PATH = /(?:file:\/\/)?([/~A-Za-z0-9_.+@%:=\\-][^"'\s]*?SKILL\.md)/gi;
 var MAX_SESSION_SEARCH_DEPTH = 5;
+var revisionCache = /* @__PURE__ */ new Map();
 function defaultSessionsRoot() {
   const codexHome = process.env.CODEX_HOME;
   return path.join(codexHome ? path.resolve(codexHome) : path.join(os.homedir(), ".codex"), "sessions");
@@ -37440,6 +37442,29 @@ async function findSessionFile(root, sessionId, depth = 0) {
     if (match) return match;
   }
   return null;
+}
+async function sessionActivityRevision(sessionIds, sessionsRoot = defaultSessionsRoot()) {
+  const parts = [];
+  for (const sessionId of [...new Set(sessionIds.filter(Boolean))]) {
+    const sessionFile = await findSessionFile(sessionsRoot, sessionId);
+    if (!sessionFile) {
+      parts.push(`${sessionId}:missing`);
+      continue;
+    }
+    const metadata = await stat(sessionFile).catch(() => null);
+    const signature = `${metadata?.size ?? -1}:${metadata?.mtimeMs ?? -1}`;
+    const cacheKey = `${sessionId}:${sessionFile}`;
+    const cached2 = revisionCache.get(cacheKey);
+    if (cached2?.signature === signature) {
+      parts.push(`${sessionId}:${cached2.revision}`);
+      continue;
+    }
+    const activity = await readSessionActivity([sessionId], sessionsRoot);
+    const revision = createHash("sha1").update(activity.map((record2) => `${record2.timestamp}|${record2.path}|${record2.toolName ?? ""}`).join("\n")).digest("hex").slice(0, 16);
+    revisionCache.set(cacheKey, { signature, revision });
+    parts.push(`${sessionId}:${revision}`);
+  }
+  return createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 16);
 }
 function toolInput(payload) {
   return payload.input ?? payload.arguments ?? payload.tool_input;
@@ -37558,6 +37583,28 @@ async function readActivity(dataDir = process.env.PLUGIN_DATA) {
     return [];
   }
 }
+async function hookActivityRevision(dataDir = process.env.PLUGIN_DATA) {
+  if (!dataDir) return "no-hook-data";
+  const activityPath = path2.join(dataDir, "activity.jsonl");
+  const metadata = await stat2(activityPath).catch(() => null);
+  return metadata ? `${activityPath}:${metadata.size}:${metadata.mtimeMs}` : `${activityPath}:missing`;
+}
+async function getSkillSessionStatus(options = {}) {
+  const sessionIds = [...new Set((options.sessionIds ?? []).filter(Boolean))];
+  const [sessionRevision, hookRevision] = await Promise.all([
+    sessionActivityRevision(sessionIds, options.sessionsRoot),
+    hookActivityRevision(options.dataDir)
+  ]);
+  return {
+    trackingAvailable: sessionIds.length > 0,
+    sessionIds,
+    primarySessionId: sessionIds[0] ?? null,
+    activityRevision: createHash2("sha1").update(`${sessionIds.join("|")}
+${sessionRevision}
+${hookRevision}`).digest("hex").slice(0, 16),
+    checkedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
 async function scanSkills(options = {}) {
   const cwd = options.cwd ?? process.cwd();
   const canonicalCwd = await realpath(cwd).catch(() => path2.resolve(cwd));
@@ -37578,9 +37625,10 @@ async function scanSkills(options = {}) {
   ];
   const sessionIdList = (options.sessionIds ?? []).filter(Boolean);
   const sessionIds = new Set(sessionIdList);
-  const [hookActivity, sessionActivity] = await Promise.all([
+  const [hookActivity, sessionActivity, sessionStatus] = await Promise.all([
     readActivity(options.dataDir),
-    readSessionActivity(sessionIdList, options.sessionsRoot)
+    readSessionActivity(sessionIdList, options.sessionsRoot),
+    getSkillSessionStatus({ dataDir: options.dataDir, sessionIds: sessionIdList, sessionsRoot: options.sessionsRoot })
   ]);
   const activity = [...sessionActivity, ...hookActivity].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 500);
   const latestByPath = /* @__PURE__ */ new Map();
@@ -37596,12 +37644,12 @@ async function scanSkills(options = {}) {
   const skills = (await Promise.all(
     paths.map(async (skillPath) => {
       try {
-        const [content, metadata] = await Promise.all([readFile(skillPath, "utf8"), stat(skillPath)]);
+        const [content, metadata] = await Promise.all([readFile(skillPath, "utf8"), stat2(skillPath)]);
         const frontmatter = parseFrontmatter(content);
         const observed = latestByPath.get(path2.resolve(skillPath));
         const sessionObserved = sessionLatestByPath.get(path2.resolve(skillPath));
         return {
-          id: createHash("sha1").update(path2.resolve(skillPath)).digest("hex").slice(0, 12),
+          id: createHash2("sha1").update(path2.resolve(skillPath)).digest("hex").slice(0, 12),
           name: frontmatter.name || path2.basename(path2.dirname(skillPath)),
           description: frontmatter.description || "\u6CA1\u6709 description \u5143\u6570\u636E",
           path: skillPath,
@@ -37631,7 +37679,10 @@ async function scanSkills(options = {}) {
     roots,
     currentSession: {
       trackingAvailable: sessionIds.size > 0,
-      observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length
+      observedSkillCount: skills.filter((skill) => Boolean(skill.sessionObservedAt)).length,
+      sessionIds: sessionStatus.sessionIds,
+      primarySessionId: sessionStatus.primarySessionId,
+      activityRevision: sessionStatus.activityRevision
     },
     notices: [
       "\u5F53\u524D Session \u6765\u81EA\u672C\u5730\u4F1A\u8BDD\u65E5\u5FD7\u4E0E Hook \u4E2D\u53EF\u6838\u5BF9\u7684 SKILL.md \u5DE5\u5177\u8BFB\u53D6\uFF0C\u4E0D\u7B49\u540C\u4E8E Codex \u5B98\u65B9 SkillActivated \u4E8B\u4EF6\u3002",
@@ -37668,19 +37719,20 @@ function result(data) {
     structuredContent: data
   };
 }
-function currentSessionIds(extra) {
+function currentSessionIds(extra, requested) {
+  if (requested?.length) return [...new Set(requested.filter(Boolean))];
   const metadata = extra?._meta;
   const openAiSession = metadata?.["openai/session"];
   return [...new Set([
-    process.env.CODEX_THREAD_ID,
-    typeof openAiSession === "string" ? openAiSession : void 0
+    typeof openAiSession === "string" ? openAiSession : void 0,
+    process.env.CODEX_THREAD_ID
   ].filter((value) => Boolean(value)))];
 }
 serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.3",
+    version: "0.1.4",
     icons
   });
   const html = await readFile2(new URL("./app.html", import.meta.url), "utf8");
@@ -37718,27 +37770,38 @@ serveStdio(async () => {
     async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) })
   );
   server.registerTool(
+    "skillLens.status",
+    {
+      title: "Check Skill activity",
+      description: "Check the current session identity and activity revision without rescanning the full Skill catalog.",
+      inputSchema: external_exports.object({ sessionIds: external_exports.array(external_exports.string()).max(4).optional() }),
+      annotations: readonly2,
+      _meta: { ui: { visibility: ["app"] } }
+    },
+    async ({ sessionIds }, extra) => result({ status: await getSkillSessionStatus({ sessionIds: currentSessionIds(extra, sessionIds) }) })
+  );
+  server.registerTool(
     "skillLens.list",
     {
       title: "Refresh skills",
       description: "Rescan local Skill directories and recent observed reads.",
-      inputSchema: external_exports.object({}),
+      inputSchema: external_exports.object({ sessionIds: external_exports.array(external_exports.string()).max(4).optional() }),
       annotations: readonly2,
       _meta: { ui: { visibility: ["app"] } }
     },
-    async (_args, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra) }) })
+    async ({ sessionIds }, extra) => result({ snapshot: await scanSkills({ sessionIds: currentSessionIds(extra, sessionIds) }) })
   );
   server.registerTool(
     "skillLens.read",
     {
       title: "Read Skill instructions",
       description: "Read the exact SKILL.md content for one discovered Skill.",
-      inputSchema: external_exports.object({ path: external_exports.string() }),
+      inputSchema: external_exports.object({ path: external_exports.string(), sessionIds: external_exports.array(external_exports.string()).max(4).optional() }),
       annotations: readonly2,
       _meta: { ui: { visibility: ["app"] } }
     },
-    async ({ path: path3 }, extra) => {
-      const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra) });
+    async ({ path: path3, sessionIds }, extra) => {
+      const snapshot = await scanSkills({ sessionIds: currentSessionIds(extra, sessionIds) });
       return result({ detail: await readSkill(path3, snapshot) });
     }
   );

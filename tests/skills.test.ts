@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readSkill, scanSkills } from "../src/server/skills.js";
+import { getSkillSessionStatus, readSkill, scanSkills } from "../src/server/skills.js";
 
 test("scanSkills indexes SKILL.md metadata and exact content", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "skill-lens-"));
@@ -20,6 +20,8 @@ test("scanSkills indexes SKILL.md metadata and exact content", async () => {
   assert.equal(snapshot.skills[0]?.source, "project");
   assert.equal(snapshot.skills[0]?.sessionObservedAt, null);
   assert.equal(snapshot.currentSession.trackingAvailable, false);
+  assert.deepEqual(snapshot.currentSession.sessionIds, []);
+  assert.equal(snapshot.currentSession.primarySessionId, null);
 
   const detail = await readSkill(snapshot.skills[0]!.path, snapshot);
   assert.equal(detail.content, content);
@@ -61,10 +63,31 @@ test("scanSkills separates current-session reads from historical reads", async (
   const historical = snapshot.skills.find((skill) => skill.name === "historical-skill");
   assert.equal(snapshot.currentSession.trackingAvailable, true);
   assert.equal(snapshot.currentSession.observedSkillCount, 1);
+  assert.deepEqual(snapshot.currentSession.sessionIds, ["session-current"]);
+  assert.equal(snapshot.currentSession.primarySessionId, "session-current");
   assert.equal(current?.sessionObservedAt, "2026-11-18T11:00:00.000Z");
   assert.equal(snapshot.activity[0]?.detection, "session-log-read");
   assert.equal(historical?.sessionObservedAt, null);
   assert.equal(historical?.observedAt, "2026-11-18T10:00:00.000Z");
+});
+
+test("getSkillSessionStatus changes revision only when Skill activity changes", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "skill-lens-status-"));
+  const sessionsRoot = path.join(root, "sessions");
+  const sessionDirectory = path.join(sessionsRoot, "2026", "11", "19");
+  const sessionFile = path.join(sessionDirectory, "rollout-session-live.jsonl");
+  await mkdir(sessionDirectory, { recursive: true });
+  await writeFile(sessionFile, "{}\n");
+
+  const before = await getSkillSessionStatus({ sessionIds: ["session-live"], sessionsRoot });
+  await appendFile(sessionFile, `${JSON.stringify({ type: "response_item" })}\n`);
+  const unrelated = await getSkillSessionStatus({ sessionIds: ["session-live"], sessionsRoot });
+  await appendFile(sessionFile, `${JSON.stringify({ timestamp: "2026-11-19T12:00:00.000Z", type: "response_item", payload: { type: "custom_tool_call", name: "exec", input: "cat /tmp/example/SKILL.md" } })}\n`);
+  const afterSkillRead = await getSkillSessionStatus({ sessionIds: ["session-live"], sessionsRoot });
+
+  assert.equal(before.primarySessionId, "session-live");
+  assert.equal(before.activityRevision, unrelated.activityRevision);
+  assert.notEqual(unrelated.activityRevision, afterSkillRead.activityRevision);
 });
 
 test("readSkill rejects paths outside the scanned catalog", async () => {

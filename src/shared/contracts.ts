@@ -34,5 +34,16 @@ export type SkillSnapshot = {
   currentSession: {
     trackingAvailable: boolean;
     observedSkillCount: number;
+    sessionIds: string[];
+    primarySessionId: string | null;
+    activityRevision: string;
   };
+};
+
+export type SkillSessionStatus = {
+  trackingAvailable: boolean;
+  sessionIds: string[];
+  primarySessionId: string | null;
+  activityRevision: string;
+  checkedAt: string;
 };

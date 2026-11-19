@@ -1,5 +1,6 @@
 import { createReadStream } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -8,13 +9,14 @@ import type { ActivityRecord } from "../shared/contracts.js";
 
 const SKILL_PATH = /(?:file:\/\/)?([/~A-Za-z0-9_.+@%:=\\-][^"'\s]*?SKILL\.md)/gi;
 const MAX_SESSION_SEARCH_DEPTH = 5;
+const revisionCache = new Map<string, { signature: string; revision: string }>();
 
 function defaultSessionsRoot(): string {
   const codexHome = process.env.CODEX_HOME;
   return path.join(codexHome ? path.resolve(codexHome) : path.join(os.homedir(), ".codex"), "sessions");
 }
 
-async function findSessionFile(root: string, sessionId: string, depth = 0): Promise<string | null> {
+export async function findSessionFile(root: string, sessionId: string, depth = 0): Promise<string | null> {
   if (depth > MAX_SESSION_SEARCH_DEPTH) return null;
   let entries;
   try {
@@ -33,6 +35,36 @@ async function findSessionFile(root: string, sessionId: string, depth = 0): Prom
     if (match) return match;
   }
   return null;
+}
+
+export async function sessionActivityRevision(
+  sessionIds: string[],
+  sessionsRoot = defaultSessionsRoot(),
+): Promise<string> {
+  const parts: string[] = [];
+  for (const sessionId of [...new Set(sessionIds.filter(Boolean))]) {
+    const sessionFile = await findSessionFile(sessionsRoot, sessionId);
+    if (!sessionFile) {
+      parts.push(`${sessionId}:missing`);
+      continue;
+    }
+    const metadata = await stat(sessionFile).catch(() => null);
+    const signature = `${metadata?.size ?? -1}:${metadata?.mtimeMs ?? -1}`;
+    const cacheKey = `${sessionId}:${sessionFile}`;
+    const cached = revisionCache.get(cacheKey);
+    if (cached?.signature === signature) {
+      parts.push(`${sessionId}:${cached.revision}`);
+      continue;
+    }
+    const activity = await readSessionActivity([sessionId], sessionsRoot);
+    const revision = createHash("sha1")
+      .update(activity.map((record) => `${record.timestamp}|${record.path}|${record.toolName ?? ""}`).join("\n"))
+      .digest("hex")
+      .slice(0, 16);
+    revisionCache.set(cacheKey, { signature, revision });
+    parts.push(`${sessionId}:${revision}`);
+  }
+  return createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 16);
 }
 
 function toolInput(payload: Record<string, unknown>): unknown {
