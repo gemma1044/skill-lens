@@ -11,7 +11,7 @@ import { z } from "zod/v4";
 
 import { getSkillSessionStatus, readSkill, scanSkills } from "./skills.js";
 
-const UI_URI = "ui://skill-lens/global-v1";
+const UI_URI = "ui://skill-lens/thread-panel-v1";
 const icons = [
   {
     src: `data:image/svg+xml,${encodeURIComponent(
@@ -48,7 +48,7 @@ serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.4",
+    version: "0.1.6",
     icons,
   });
   const html = await readFile(new URL("./app.html", import.meta.url), "utf8");
@@ -61,8 +61,8 @@ serveStdio(async () => {
         text: html,
         _meta: {
           "openai/ui": {
-            preferredDisplayMode: "fullscreen",
-            availableDisplayModes: ["fullscreen", "inline"],
+            preferredDisplayMode: "pip",
+            availableDisplayModes: ["pip", "fullscreen"],
           } satisfies OpenAIUiResourceMetadata,
         },
       },
@@ -80,7 +80,7 @@ serveStdio(async () => {
       _meta: {
         ui: { resourceUri: UI_URI, visibility: ["app"] },
         "openai/ui": {
-          entrypoints: [{ type: "global" }, { type: "thread" }],
+          entrypoints: [{ type: "thread" }],
         } satisfies OpenAIUiToolMetadata,
         "openai/iconStyle": "monochrome",
       },
