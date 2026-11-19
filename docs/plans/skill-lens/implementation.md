@@ -4,7 +4,7 @@
 
 | 实现点 | 现状 | 目标状态 | 状态 |
 | --- | --- | --- | --- |
-| Codex 入口 | 无同名插件 | OpenAI MCP Extension 的 global + thread entrypoint | 本期新增 |
+| Codex 入口 | 已有 global + thread entrypoint，但使用说明容易让用户在聊天中发起任务 | 保持 app-only entrypoint；用户点击入口后直接显示，不经过聊天查询 | 本期修正 |
 | Skill 数据 | 分散在本地 `SKILL.md` | 只读扫描、解析元数据并按来源分类 | 本期新增 |
 | 活动数据 | 无官方激活事件 | `PostToolUse` Hook 记录成功工具调用中出现的 `SKILL.md` 路径 | 本期新增 |
 | 正文查看 | 需要手动开文件 | 点击列表读取扫描白名单内的原文 | 本期新增 |
@@ -25,4 +25,4 @@
 1. Sidebar App 可打开并列出真实本地 Skill。
 2. 点击条目显示与磁盘完全一致的 `SKILL.md`。
 3. Hook 写入一条模拟读取后，对应 Skill 显示活动状态。
-4. 搜索、筛选、移动端布局和键盘焦点均可用。
+4. 当前 Session 默认页无搜索和筛选；全部 Skill 目录中的搜索、筛选、移动端布局和键盘焦点均可用。

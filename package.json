@@ -1,9 +1,9 @@
 {
   "name": "skill-lens",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
-  "description": "A Codex sidebar plugin for inspecting available skills and observed SKILL.md reads.",
+  "description": "A Codex sidebar plugin for displaying available skills and observed SKILL.md reads.",
   "license": "MIT",
   "engines": {
     "node": ">=22"

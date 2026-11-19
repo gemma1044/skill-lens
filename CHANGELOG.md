@@ -1,5 +1,12 @@
 # Changelog
 
+## Preview v0.1.3 — 纯展示插件入口
+
+- 明确 Skill Lens 只能从 Codex 侧边栏直接打开，不需要在聊天中输入产品名或发起查询。
+- 当前 Session 默认页移除搜索与来源筛选，只展示本会话检测到读取的 Skill。
+- 搜索保留在“全部 Skill”目录中，作为面板内的本地定位能力。
+- 入口与数据工具继续保持 `app-only`，不向模型暴露为会话查询工具。
+
 ## Preview v0.1.2 — Session 日志回溯
 
 - 从当前 Codex Session 的本地工具调用日志恢复已经发生的 `SKILL.md` 读取，不再只依赖启用后的 Hook。
