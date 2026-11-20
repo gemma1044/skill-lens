@@ -1,5 +1,11 @@
 # Changelog
 
+## Preview v0.1.7 — 恢复可见入口并纠正侧栏能力边界
+
+- 恢复 `global` 入口，避免当前 Codex Desktop 因不展示第三方 `thread` 入口而无处打开 Skill Lens。
+- 保留 `thread` 声明，为宿主后续支持 conversation panel 做准备。
+- 撤回错误的一页说明书：当前 Codex 右侧面板来源选择器没有 Skill Lens，不能声称侧栏入口已经可用。
+
 ## Preview v0.1.6 — 改为当前会话侧边面板
 
 - 移除会占据主工作区的 `global` 入口，只保留当前 conversation 的 `thread` 入口。

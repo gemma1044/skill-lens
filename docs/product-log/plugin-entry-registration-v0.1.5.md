@@ -22,3 +22,7 @@ Codex Desktop 日志明确报告 `mcp.json` 中的 `cwd: "."` 不满足 Agent Pl
 ## 后续修正：v0.1.6
 
 真实桌面验收发现 `global` 入口会打开独立主页面，不符合“随当前 conversation 常驻右侧面板”的产品目标。v0.1.6 因此只保留 `thread` 入口，并将首选展示模式调整为 `pip`。
+
+## 实机纠正：v0.1.7
+
+用户在 Codex Desktop 的右侧面板来源选择器中复核后，确认其中没有 Skill Lens。当前宿主虽然能读取 `thread` 声明，但没有在该 Codex 面板展示第三方入口。v0.1.7 恢复 `global` 作为目前唯一可见入口，并明确：右侧常驻面板仍未真实交付。

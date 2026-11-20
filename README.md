@@ -56,9 +56,13 @@ codex plugin add skill-lens@skill-lens-local
 
 ## 开发状态
 
-当前版本：`preview-v0.1.6`。产品计划、视觉规范和里程碑记录分别位于 `docs/plans/`、`docs/design-system/` 与 `docs/product-log/`。
+当前版本：`preview-v0.1.7`。产品计划、视觉规范和里程碑记录分别位于 `docs/plans/`、`docs/design-system/` 与 `docs/product-log/`。
 
-一页使用说明：[`docs/usage/skill-lens-one-page-guide.png`](./docs/usage/skill-lens-one-page-guide.png)
+### Codex Desktop 当前入口限制
+
+- 当前实机版本会在左侧「更多」菜单显示 Skill Lens 的全局入口；该入口打开独立应用页。
+- 插件同时声明了 conversation `thread` 入口，但当前 Codex 右侧面板的来源选择器未展示第三方 Skill Lens 入口。
+- 因此，目前不能把“可在 Codex 浏览器右侧栏常驻”作为已完成能力。仓库保留 `thread` 声明，用于宿主后续支持时直接接入。
 
 ## License
 
