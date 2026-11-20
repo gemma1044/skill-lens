@@ -48,7 +48,7 @@ serveStdio(async () => {
   const server = new McpServer({
     name: "skill-lens",
     title: "Skill Lens",
-    version: "0.1.6",
+    version: "0.1.7",
     icons,
   });
   const html = await readFile(new URL("./app.html", import.meta.url), "utf8");
@@ -80,7 +80,7 @@ serveStdio(async () => {
       _meta: {
         ui: { resourceUri: UI_URI, visibility: ["app"] },
         "openai/ui": {
-          entrypoints: [{ type: "thread" }],
+          entrypoints: [{ type: "global" }, { type: "thread" }],
         } satisfies OpenAIUiToolMetadata,
         "openai/iconStyle": "monochrome",
       },
